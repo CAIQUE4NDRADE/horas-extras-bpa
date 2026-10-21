@@ -102,6 +102,7 @@ async function prepararPerfil(user) {
     ? '<option value="">Selecione...</option>' + sups.map(s => `<option value="${s.id}">${esc(s.nome)}</option>`).join('')
     : '<option value="">(nenhum supervisor cadastrado ainda)</option>';
   sel.required = !!(sups && sups.length);
+  $('#p-cargo').innerHTML = '<option value="">Selecione o cargo...</option>' + opcoesCargo('');
   $('#f-perfil').dataset.cs = user.user_metadata?.cs || user.email.split('@')[0];
   $('#usuario').hidden = false; $('#u-nome').textContent = $('#f-perfil').dataset.cs;
   mostrar('v-perfil');
@@ -115,7 +116,7 @@ $('#f-perfil').onsubmit = async e => {
     id: user.id,
     cs: f.dataset.cs,
     nome: $('#p-nome').value.trim(),
-    cargo: $('#p-cargo').value.trim(),
+    cargo: $('#p-cargo').value,
     turno: $('#p-turno').value,
     supervisor_id: $('#p-supervisor').value || null
   });
@@ -560,7 +561,7 @@ async function contarPendentes() {
 async function carregarPendentes() {
   $('#a-lista').innerHTML = '<p class="vazio">Carregando...</p>';
   const { data, error } = await sb.from('horas_extras')
-    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs)')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo)')
     .eq('status', 'pendente').neq('colaborador_id', eu.id).order('data');
   if (error) { $('#a-lista').innerHTML = `<p class="msg erro">${esc(error.message)}</p>`; return; }
   $('#a-lista').innerHTML = data.length ? data.map(r => itemHTML(r, false)).join('')
@@ -751,10 +752,11 @@ async function carregarEquipe() {
     `<option ${p === sel ? 'selected' : ''}>${p}</option>`).join('');
 
   $('#e-lista').innerHTML = `<table class="tab">
-    <thead><tr><th>Nome</th><th>CS</th><th>Turno</th><th>Papel</th><th>Supervisor</th><th>Ativo</th><th></th></tr></thead>
+    <thead><tr><th>Nome</th><th>CS</th><th>Turno</th><th>Cargo</th><th>Papel</th><th>Supervisor</th><th>Ativo</th><th></th></tr></thead>
     <tbody>${data.map(c => `<tr data-id="${c.id}">
-      <td>${esc(c.nome)}<br><small style="color:var(--suave)">${esc(c.cargo)}</small></td>
-      <td>${esc(c.cs.toUpperCase())}</td><td>${c.turno}</td>
+      <td>${esc(c.nome)}</td>
+      <td>${esc(c.cs.toUpperCase())}</td><td><select class="e-turno">${Object.keys(TURNOS).map(t => `<option ${t === c.turno ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td><select class="e-cargo">${opcoesCargo(c.cargo)}</select></td>
       <td><select class="e-papel">${optPapel(c.papel)}</select></td>
       <td><select class="e-sup">${optSup(c.supervisor_id)}</select></td>
       <td><input type="checkbox" class="e-ativo" ${c.ativo ? 'checked' : ''} style="width:auto"></td>
@@ -795,6 +797,8 @@ window.salvarColab = async btn => {
   carregandoBotao(btn, true, 'Salvando...');
   const { error } = await sb.from('colaboradores').update({
     papel: tr.querySelector('.e-papel').value,
+    cargo: tr.querySelector('.e-cargo').value,
+    turno: tr.querySelector('.e-turno').value,
     supervisor_id: tr.querySelector('.e-sup').value || null,
     ativo: tr.querySelector('.e-ativo').checked
   }).eq('id', tr.dataset.id);
@@ -837,7 +841,7 @@ function graficoDias(p, hes) {
 
 async function pendenciasRapidas() {
   let q = sb.from('horas_extras')
-    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs)')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo)')
     .eq('status', 'pendente').neq('colaborador_id', eu.id).order('atualizado_em').limit(5);
   const { data } = await q;
   return data || [];
@@ -851,7 +855,7 @@ function chaveAnterior(chave) {
 
 async function buscarHEsPeriodo(p) {
   let q = sb.from('horas_extras')
-    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs)')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo)')
     .gte('data', p.ini).lte('data', p.fim).neq('status', 'recusado');
   if (!ehAdmin()) q = q.neq('colaborador_id', eu.id);   // supervisor vê só a equipe
   return q;
@@ -919,6 +923,9 @@ async function carregarPainel() {
   const turnos = Object.keys(TURNOS).map(t => ({ rotulo: `${t} (${TURNOS[t].entrada})`, valor: soma(hes.filter(r => r.turno === t)) }));
 
   const vazio = !hes.length;
+  const porCargo = [...GRUPOS_CARGO, 'OUTROS']
+    .map(g => ({ rotulo: g.charAt(0) + g.slice(1).toLowerCase(), valor: soma(hes.filter(r => grupoCargo(r.colaborador?.cargo) === g)) }))
+    .filter(x => x.valor || x.rotulo !== 'Outros');
   const porPct = COLUNAS.map(c => ({ rotulo: c.rotulo, valor: hes.reduce((a, r) => a + (r[c.campo] || 0), 0) }));
   box.innerHTML = `
     <div class="kpis">
@@ -966,6 +973,10 @@ async function carregarPainel() {
       <div class="card">
         <h3>HE por turno</h3>
         ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(turnos, '#2f6fb0')}
+      </div>
+      <div class="card">
+        <h3>HE por cargo</h3>
+        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(porCargo, '#6b4fa3')}
       </div>
       <div class="card">
         <h3>Por percentual</h3>

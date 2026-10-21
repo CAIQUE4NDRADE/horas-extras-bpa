@@ -124,3 +124,24 @@ function minutosDentroDoTurno(ini, fim, turno, jEnt, jSai) {
 }
 const TOLERANCIA_TURNO = 10; // minutos de sobreposição ignorados
 
+
+// Cargos (lista fixa no cadastro) e o grupo usado nos indicadores
+const CARGOS = {
+  'Operador': ['OPERADOR 1', 'OPERADOR 2', 'OPERADOR 3'],
+  'Administrativo': ['ADMINISTRATIVO 1', 'ADMINISTRATIVO 2'],
+  'Supervisor': ['SUPERVISOR 1', 'SUPERVISOR 2', 'SUPERVISOR 3'],
+  'Superintendente': ['SUPERINTENDENTE DO TERMINAL'],
+  'Aprendiz': ['APRENDIZ']
+};
+const GRUPOS_CARGO = ['OPERADOR', 'ADMINISTRATIVO', 'SUPERVISOR', 'SUPERINTENDENTE', 'APRENDIZ'];
+function grupoCargo(cargo) {
+  const c = String(cargo || '').toUpperCase().trim();
+  return GRUPOS_CARGO.find(g => c.startsWith(g)) || 'OUTROS';
+}
+function opcoesCargo(selecionado) {
+  const todos = Object.values(CARGOS).flat();
+  const extra = selecionado && !todos.includes(selecionado)
+    ? `<option value="${esc(selecionado)}" selected>${esc(selecionado)} (antigo, trocar)</option>` : '';
+  return extra + Object.entries(CARGOS).map(([g, lista]) => `<optgroup label="${g}">` +
+    lista.map(c => `<option ${c === selecionado ? 'selected' : ''}>${c}</option>`).join('') + '</optgroup>').join('');
+}

@@ -1044,5 +1044,24 @@ $('#f-senha').onsubmit = async e => {
   msg(f, 'Senha alterada! Use a nova senha no próximo login.', 'ok');
 };
 
+// ===================== ACESSIBILIDADE / TOPO =====================
+// Preferências ficam só neste aparelho
+const PREF = (() => { try { return JSON.parse(localStorage.getItem('he-acess') || '{}'); } catch (e) { return {}; } })();
+function salvarPref() { try { localStorage.setItem('he-acess', JSON.stringify(PREF)); } catch (e) {} }
+function aplicarPref() {
+  const z = PREF.zoom || 1;
+  document.body.style.zoom = z === 1 ? '' : z;
+  document.body.classList.toggle('contraste', !!PREF.contraste);
+  $('#ac-contraste').setAttribute('aria-pressed', PREF.contraste ? 'true' : 'false');
+  $('#ac-contraste').classList.toggle('ativo', !!PREF.contraste);
+}
+$('#ac-mais').onclick = () => { PREF.zoom = Math.min(1.4, +((PREF.zoom || 1) + 0.1).toFixed(1)); salvarPref(); aplicarPref(); };
+$('#ac-menos').onclick = () => { PREF.zoom = Math.max(0.9, +((PREF.zoom || 1) - 0.1).toFixed(1)); salvarPref(); aplicarPref(); };
+$('#ac-contraste').onclick = () => { PREF.contraste = !PREF.contraste; salvarPref(); aplicarPref(); };
+aplicarPref();
+
+$('#btn-topo').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+window.addEventListener('scroll', () => { $('#btn-topo').hidden = window.scrollY < 500; }, { passive: true });
+
 // ===================== GO =====================
 iniciar();

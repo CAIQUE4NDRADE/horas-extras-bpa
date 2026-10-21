@@ -95,7 +95,14 @@ $('#f-perfil').onsubmit = async e => {
   iniciar();
 };
 
-$('#btn-sair').onclick = async () => { await sb.auth.signOut(); eu = null; location.reload(); };
+$('#btn-sair').onclick = async () => {
+  // scope 'local' encerra a sessão neste aparelho sem depender do servidor responder
+  try { await sb.auth.signOut({ scope: 'local' }); } catch (e) { console.warn(e); }
+  // garantia: remove qualquer sessão guardada pelo Supabase no navegador
+  try { Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  eu = null;
+  location.reload();
+};
 
 // ===================== APP =====================
 const ehSup = () => eu && (eu.papel === 'supervisor' || eu.papel === 'admin');

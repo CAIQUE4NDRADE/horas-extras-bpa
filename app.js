@@ -147,11 +147,12 @@ function montarApp() {
   $$('.so-admin').forEach(el => el.hidden = !ehAdmin());
   preencherPeriodos($('#m-periodo'));
   preencherPeriodos($('#r-periodo'));
+  preencherPeriodos($('#pn-periodo'));
   montarColunas();
   limparForm();
   carregarResumoMes();
   mostrar('v-app');
-  abrirPainel('p-lancar');
+  abrirPainel(ehSup() ? 'p-painel' : 'p-lancar');
   if (ehSup()) contarPendentes();
   if (ehAdmin()) contarCadastros();
   carregarAuxiliares().then(conferir);
@@ -172,6 +173,7 @@ function abrirPainel(id) {
   $$('.aba').forEach(b => b.classList.toggle('ativa', b.dataset.painel === id));
   $$('.painel').forEach(p => p.hidden = p.id !== id);
   if (id === 'p-minhas') carregarMinhas();
+  if (id === 'p-painel') carregarPainel();
   if (id === 'p-aprovar') carregarPendentes();
   if (id === 'p-resumo') carregarResumo();
   if (id === 'p-equipe') { carregarEquipe(); carregarFeriadosAdmin(); }
@@ -706,6 +708,128 @@ window.salvarColab = async btn => {
   btn.textContent = 'Salvo ✓';
   setTimeout(() => { btn.textContent = 'Salvar'; carregarEquipe(); }, 900);
 };
+
+// ===================== PAINEL (supervisor/admin) =====================
+$('#pn-periodo').onchange = carregarPainel;
+$('#pn-atualizar').onclick = carregarPainel;
+
+function chaveAnterior(chave) {
+  const [y, m] = chave.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+async function buscarHEsPeriodo(p) {
+  let q = sb.from('horas_extras')
+    .select('id, colaborador_id, data, turno, status, inicio, fim, almoco_corrido, min_35, min_80, min_80n, min_100, min_100n, atualizado_em, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs)')
+    .gte('data', p.ini).lte('data', p.fim).neq('status', 'recusado');
+  if (!ehAdmin()) q = q.neq('colaborador_id', eu.id);   // supervisor vê só a equipe
+  return q;
+}
+
+function barras(itens, cor) {
+  const max = Math.max(1, ...itens.map(i => i.valor));
+  return itens.map(i => `<div class="barra-linha">
+      <span class="barra-rot" title="${esc(i.rotulo)}">${esc(i.rotulo)}</span>
+      <span class="barra-trilho"><span class="barra" style="width:${Math.max(2, i.valor / max * 100)}%;background:${cor || 'var(--pri)'}"></span></span>
+      <span class="barra-val">${fmtMin(i.valor, true)}</span>
+    </div>`).join('');
+}
+
+async function carregarPainel() {
+  const chave = $('#pn-periodo').value, p = periodoDe(chave), pAnt = periodoDe(chaveAnterior(chave));
+  const box = $('#pn-conteudo');
+  box.innerHTML = '<p class="vazio">Carregando...</p>';
+  const [{ data: hes, error }, { data: ant }] = await Promise.all([buscarHEsPeriodo(p), buscarHEsPeriodo(pAnt)]);
+  if (error) { box.innerHTML = `<p class="msg erro">${esc(erroAmigavel(error))}</p>`; return; }
+
+  const soma = arr => arr.reduce((a, r) => a + somaColunas(r), 0);
+  const aprov = hes.filter(r => r.status === 'aprovado'), pend = hes.filter(r => r.status === 'pendente');
+  const total = soma(hes), totalAnt = soma(ant || []);
+
+  // comparação com o período anterior
+  let comp = '<small>sem dados do período anterior</small>';
+  if (totalAnt > 0) {
+    const pct = Math.round((total - totalAnt) / totalAnt * 100);
+    comp = `<small class="${pct > 0 ? 'sobe' : pct < 0 ? 'desce' : ''}">${pct > 0 ? '▲ +' : pct < 0 ? '▼ ' : ''}${pct}% vs. período anterior (${fmtMin(totalAnt, true)})</small>`;
+  }
+
+  // fechamento
+  const hoje = hojeISO();
+  let fech;
+  if (fechados.has(chave)) fech = { v: '🔒', t: 'Período fechado', s: 'não aceita mais alterações' };
+  else if (hoje > p.fim) fech = { v: 'Encerrado', t: 'Período encerrado', s: `terminou em ${br(p.fim)} · ainda aberto para ajustes` };
+  else if (hoje < p.ini) fech = { v: '—', t: 'Período futuro', s: `começa em ${br(p.ini)}` };
+  else {
+    const dias = Math.round((dataDe(p.fim) - dataDe(hoje)) / 86400000);
+    fech = { v: dias === 0 ? 'Hoje' : `${dias} dia${dias > 1 ? 's' : ''}`, t: 'Para o fechamento', s: dias === 0 ? `o período fecha hoje (${br(p.fim)})` : `faltam ${dias} dia${dias > 1 ? 's' : ''} para o dia ${br(p.fim).slice(0, 5)}` };
+  }
+
+  // colaboradores com pendências
+  const porPessoa = {};
+  pend.forEach(r => {
+    const k = r.colaborador_id;
+    porPessoa[k] = porPessoa[k] || { nome: r.colaborador?.nome || '—', cs: r.colaborador?.cs || '', qtd: 0, min: 0, maisAntiga: r.atualizado_em };
+    porPessoa[k].qtd++; porPessoa[k].min += somaColunas(r);
+    if (r.atualizado_em < porPessoa[k].maisAntiga) porPessoa[k].maisAntiga = r.atualizado_em;
+  });
+  const pessoasPend = Object.values(porPessoa).sort((a, b) => a.maisAntiga.localeCompare(b.maisAntiga));
+
+  // pendentes há mais de 3 dias
+  const limite = Date.now() - 3 * 86400000;
+  const atrasadas = pend.filter(r => new Date(r.atualizado_em).getTime() < limite);
+
+  // top 5
+  const porColab = {};
+  hes.forEach(r => { const k = r.colaborador_id; porColab[k] = porColab[k] || { rotulo: r.colaborador?.nome || '—', valor: 0 }; porColab[k].valor += somaColunas(r); });
+  const top5 = Object.values(porColab).sort((a, b) => b.valor - a.valor).slice(0, 5);
+
+  // por turno
+  const turnos = ['T1', 'T2', 'T3'].map(t => ({ rotulo: `${t} (${TURNOS[t].entrada})`, valor: soma(hes.filter(r => r.turno === t)) }));
+
+  const vazio = !hes.length;
+  box.innerHTML = `
+    <div class="kpis">
+      <div class="kpi destaque"><span>Total de HE no período</span><b>${fmtMin(total, true)}</b>${comp}</div>
+      <div class="kpi pend"><span>Aguardando aprovação</span><b>${fmtMin(soma(pend), true)}</b><small>${pend.length} lançamento(s)</small></div>
+      <div class="kpi ok"><span>Aprovadas</span><b>${fmtMin(soma(aprov), true)}</b><small>${aprov.length} lançamento(s)</small></div>
+      <div class="kpi"><span>${fech.t}</span><b>${fech.v}</b><small>${fech.s}</small></div>
+    </div>
+
+    <div class="kpis dois">
+      <button class="kpi clicavel ${pessoasPend.length ? 'pend' : ''}" id="pn-btn-pessoas" ${pessoasPend.length ? '' : 'disabled'}>
+        <span>Colaboradores com pendências</span><b>${pessoasPend.length}</b><small>${pessoasPend.length ? 'toque para ver os nomes' : 'ninguém com pendência'}</small>
+      </button>
+      <button class="kpi clicavel ${atrasadas.length ? 'alerta' : ''}" ${atrasadas.length ? '' : 'disabled'} onclick="abrirPainel('p-aprovar')">
+        <span>Pendentes há mais de 3 dias</span><b>${atrasadas.length}</b><small>${atrasadas.length ? 'toque para ir aprovar' : 'nada esquecido 👍'}</small>
+      </button>
+    </div>
+
+    <div id="pn-pessoas" class="card lista-pessoas" hidden>
+      <h3>Pendências por colaborador</h3>
+      ${pessoasPend.map(x => `<div class="pessoa-linha">
+        <span><b>${esc(x.nome)}</b> <small>${esc(x.cs.toUpperCase())}</small></span>
+        <span>${x.qtd} lançamento(s) · ${fmtMin(x.min, true)}</span>
+        <small class="${new Date(x.maisAntiga).getTime() < limite ? 'atrasada' : ''}">mais antiga: ${new Date(x.maisAntiga).toLocaleDateString('pt-BR')}</small>
+      </div>`).join('')}
+      <button class="btn ok peq" onclick="abrirPainel('p-aprovar')">Ir para Aprovar</button>
+    </div>
+
+    <div class="graficos">
+      <div class="card">
+        <h3>Quem mais fez HE <small>(top 5 no período)</small></h3>
+        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(top5)}
+      </div>
+      <div class="card">
+        <h3>HE por turno</h3>
+        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(turnos, '#2f6fb0')}
+      </div>
+    </div>
+    <p class="dica">Considera HE aprovadas e pendentes do período ${rotuloPeriodo(chave)} (recusadas ficam de fora)${ehAdmin() ? '' : ', só da sua equipe'}.</p>`;
+
+  const bp = $('#pn-btn-pessoas');
+  if (bp) bp.onclick = () => { const l = $('#pn-pessoas'); l.hidden = !l.hidden; };
+}
 
 // ===================== FERIADOS (admin) =====================
 async function carregarFeriadosAdmin() {

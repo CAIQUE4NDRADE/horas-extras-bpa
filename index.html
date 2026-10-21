@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · BPA</title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#00843d">
 <link rel="icon" href="icone-192.png">
@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=7"></script>
-<script src="comum.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="comum.js?v=8"></script>
 </head>
 <body>
 
@@ -86,6 +86,7 @@
   <!-- ========== APLICAÇÃO ========== -->
   <section id="v-app" class="view" hidden>
     <nav class="abas">
+      <button class="aba so-sup" data-painel="p-painel">Painel</button>
       <button class="aba ativa" data-painel="p-lancar">Lançar</button>
       <button class="aba" data-painel="p-minhas">Minhas HEs</button>
       <button class="aba so-sup" data-painel="p-aprovar">Aprovar <b id="badge-pend" class="badge" hidden></b></button>
@@ -94,6 +95,18 @@
     </nav>
 
     <!-- LANÇAR -->
+    <!-- PAINEL (supervisor/admin) -->
+    <div id="p-painel" class="painel" hidden>
+      <div class="cab-painel">
+        <h2>Painel da equipe</h2>
+        <div class="filtros">
+          <select id="pn-periodo"></select>
+          <button id="pn-atualizar" class="btn sec">Atualizar</button>
+        </div>
+      </div>
+      <div id="pn-conteudo"><p class="vazio">Carregando...</p></div>
+    </div>
+
     <div id="p-lancar" class="painel card">
       <div id="l-resumo" class="resumo-mes"></div>
       <h2 id="t-lancar">Lançar hora extra</h2>
@@ -215,6 +228,6 @@
 
 </main>
 
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

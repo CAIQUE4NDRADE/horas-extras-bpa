@@ -248,3 +248,4 @@ h2.sub { margin-top: 28px; }
 /* Almoço corrido */
 .chk-linha { display: flex; align-items: flex-start; gap: 10px; margin: -2px 0 14px; padding: 10px 12px; border: 1px solid var(--linha); border-radius: 8px; color: var(--texto); font-size: 14px; cursor: pointer; }
 .chk-linha input { width: 20px; height: 20px; margin: 0; flex: 0 0 auto; accent-color: var(--pri); }
+.acoes-linha { display: flex; gap: 6px; }

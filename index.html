@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · BPA</title>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#00843d">
 <link rel="icon" href="icone-192.png">
@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=6"></script>
-<script src="comum.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="comum.js?v=7"></script>
 </head>
 <body>
 
@@ -203,6 +203,7 @@
     <!-- TROCAR SENHA -->
     <div id="p-senha" class="painel card estreito" hidden>
       <h2>Trocar senha</h2>
+      <p id="s-obrigatoria" class="msg erro" hidden>Você entrou com uma senha temporária. Crie a sua senha para continuar.</p>
       <form id="f-senha">
         <label>Nova senha (mín. 6 caracteres)<input id="s-nova" type="password" autocomplete="new-password" minlength="6" required></label>
         <label>Confirme a nova senha<input id="s-nova2" type="password" autocomplete="new-password" minlength="6" required></label>
@@ -214,6 +215,6 @@
 
 </main>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

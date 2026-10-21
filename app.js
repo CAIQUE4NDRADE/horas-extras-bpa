@@ -155,6 +155,16 @@ function montarApp() {
   if (ehSup()) contarPendentes();
   if (ehAdmin()) contarCadastros();
   carregarAuxiliares().then(conferir);
+  if (eu.trocar_senha) obrigarTrocaSenha(true);
+}
+
+// Senha temporária: só libera o site depois de criar a própria senha
+function obrigarTrocaSenha(sim) {
+  $('.abas').hidden = sim;
+  $('#btn-senha').hidden = sim;
+  $('#s-obrigatoria').hidden = !sim;
+  abrirPainel(sim ? 'p-senha' : 'p-lancar');
+  if (sim) $('#s-obrigatoria').hidden = false;
 }
 
 $$('.aba').forEach(b => b.onclick = () => abrirPainel(b.dataset.painel));
@@ -651,7 +661,8 @@ async function carregarEquipe() {
       <td><select class="e-papel">${optPapel(c.papel)}</select></td>
       <td><select class="e-sup">${optSup(c.supervisor_id)}</select></td>
       <td><input type="checkbox" class="e-ativo" ${c.ativo ? 'checked' : ''} style="width:auto"></td>
-      <td><button class="btn peq" onclick="salvarColab(this)">Salvar</button></td>
+      <td class="acoes-linha"><button class="btn peq" onclick="salvarColab(this)">Salvar</button>
+        ${c.id !== eu.id ? `<button class="btn sec peq" onclick="redefinirSenha('${c.id}', '${esc(c.nome).replace(/'/g, '&#39;')}', this)">Senha</button>` : ''}</td>
     </tr>`).join('')}</tbody></table>`;
 }
 
@@ -665,6 +676,21 @@ window.liberarCadastro = async (id, liberar, btn) => {
   carregandoBotao(btn, false);
   if (error) return alert(erroAmigavel(error));
   carregarEquipe();
+};
+
+function senhaTemporaria() {
+  const n = new Uint32Array(1); crypto.getRandomValues(n);
+  return 'Bpa' + String(n[0] % 1000000).padStart(6, '0');
+}
+
+window.redefinirSenha = async (id, nome, btn) => {
+  const temp = senhaTemporaria();
+  if (!confirm(`Redefinir a senha de ${nome}?\n\nSenha temporária: ${temp}\n\nNo próximo acesso a pessoa será obrigada a criar uma senha nova.`)) return;
+  carregandoBotao(btn, true, '...');
+  const { error } = await sb.rpc('admin_redefinir_senha', { p_colab: id, p_senha: temp });
+  carregandoBotao(btn, false);
+  if (error) return alert(erroAmigavel(error));
+  prompt(`Senha de ${nome} redefinida. Passe esta senha temporária para a pessoa (pode copiar):`, temp);
 };
 
 window.salvarColab = async btn => {
@@ -726,6 +752,13 @@ $('#f-senha').onsubmit = async e => {
   ocupado(f, false);
   if (error) return msg(f, /different from the old/i.test(error.message) ? 'A nova senha precisa ser diferente da atual.' : erroAmigavel(error));
   f.reset();
+  if (eu.trocar_senha) {
+    await sb.rpc('senha_trocada');
+    eu.trocar_senha = false;
+    obrigarTrocaSenha(false);
+    msg($('#f-he'), 'Senha criada! Agora você já pode lançar suas horas extras.', 'ok');
+    return;
+  }
   msg(f, 'Senha alterada! Use a nova senha no próximo login.', 'ok');
 };
 

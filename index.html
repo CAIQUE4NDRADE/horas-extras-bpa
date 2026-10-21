@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · BPA</title>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#00843d">
 <link rel="icon" href="icone-192.png">
@@ -12,13 +12,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=14"></script>
-<script src="comum.js?v=14"></script>
+<script src="config.js?v=15"></script>
+<script src="comum.js?v=15"></script>
 </head>
 <body>
 
 <header class="topo">
-  <div class="marca">Horas Extras <span>J036 · Base de Paulínia</span></div>
+  <div class="marca"><img src="logo-branco.png" alt="Raízen" class="logo-topo"><i class="sep-logo"></i>Horas Extras <span>Base de Paulínia</span></div>
   <div id="usuario" hidden>
     <span id="u-nome"></span>
     <button id="btn-senha" class="btn-link">Senha</button>
@@ -46,6 +46,7 @@
       <label>CS<input id="c-cs" autocomplete="username" placeholder="ex.: cs338104" required></label>
       <label>Senha (mín. 6 caracteres)<input id="c-senha" type="password" autocomplete="new-password" minlength="6" required></label>
       <label>Confirme a senha<input id="c-senha2" type="password" autocomplete="new-password" minlength="6" required></label>
+      <p class="dica">Crie uma senha só para este sistema. <b>Não use a senha da rede ou do e-mail da Raízen.</b></p>
       <button class="btn">Criar conta</button>
       <p class="msg" hidden></p>
     </form>
@@ -270,6 +271,6 @@
 
 </main>
 
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

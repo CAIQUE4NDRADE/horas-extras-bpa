@@ -391,3 +391,9 @@ h2.sub { margin-top: 28px; }
   .chips.grandes.cinco { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .chips.grandes.cinco .c35 { grid-column: 1 / -1; }
 }
+
+/* Logo no topo */
+.marca { display: flex; align-items: center; gap: 10px; }
+.logo-topo { height: 26px; width: auto; display: block; }
+.sep-logo { width: 1px; height: 22px; background: rgba(255,255,255,.45); display: inline-block; }
+@media (max-width: 480px) { .logo-topo { height: 20px; } .sep-logo { height: 18px; } }

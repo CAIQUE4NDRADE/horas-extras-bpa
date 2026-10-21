@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · BPA</title>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#00843d">
 <link rel="icon" href="icone-192.png">
@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=9"></script>
-<script src="comum.js?v=9"></script>
+<script src="config.js?v=10"></script>
+<script src="comum.js?v=10"></script>
 </head>
 <body>
 
@@ -114,32 +114,65 @@
     <div id="p-lancar" class="painel card">
       <div id="l-resumo" class="resumo-mes"></div>
       <h2 id="t-lancar">Lançar hora extra</h2>
-      <form id="f-he">
-        <div class="grade g3">
-          <label>Data da jornada<input id="h-data" type="date" required></label>
-          <label>Turno
-            <select id="h-turno">
-              <option value="T1">T1</option><option value="T2">T2</option><option value="T3">T3</option>
-            </select>
-          </label>
-          <div class="previsto" id="h-previsto"></div>
+      <form id="f-he" class="form-he">
+
+        <div class="passo">
+          <div class="passo-tit"><span class="num">1</span> Quando foi?</div>
+          <div class="linha-data">
+            <input id="h-data" type="date" required aria-label="Data da jornada">
+            <div class="chips">
+              <button type="button" class="chip" data-dia="0">Hoje</button>
+              <button type="button" class="chip" data-dia="-1">Ontem</button>
+            </div>
+          </div>
+          <div class="linha-turno">
+            <label>Turno
+              <select id="h-turno">
+                <option value="T1">T1 · 07:15 às 15:45</option>
+                <option value="T2">T2 · 15:30 às 00:00</option>
+                <option value="T3">T3 · 23:50 às 07:38</option>
+              </select>
+            </label>
+            <div class="previsto" id="h-previsto" hidden></div>
+          </div>
         </div>
 
-        <div class="grade g2">
-          <label>Início da HE<input id="h-inicio" type="time" required></label>
-          <label>Fim da HE<input id="h-fim" type="time" required></label>
+        <div class="passo">
+          <div class="passo-tit"><span class="num">2</span> Horário da hora extra</div>
+          <div class="grade g2">
+            <label>Começou<input id="h-inicio" type="time" required></label>
+            <label>Terminou<input id="h-fim" type="time" required></label>
+          </div>
+          <div id="h-total" class="total-he" hidden></div>
+          <label class="chk-linha" id="h-almoco-box" hidden><input id="h-almoco" type="checkbox"> <span><b>Almoço corrido</b>: trabalhei no horário de refeição</span></label>
         </div>
-        <label class="chk-linha"><input id="h-almoco" type="checkbox"> <span><b>Almoço corrido</b>: a HE foi o horário de refeição trabalhado (dentro do turno)</span></label>
-
-        <fieldset>
-          <legend>Distribuição por percentual <small>(hh:mm)</small></legend>
-          <div class="grade g5" id="h-colunas"></div>
-          <div id="h-conferencia" class="conferencia"></div>
-        </fieldset>
         <div id="h-avisos" class="avisos"></div>
 
+        <div class="passo">
+          <div class="passo-tit"><span class="num">3</span> Qual o percentual?</div>
+          <div class="chips grandes" id="h-chips">
+            <button type="button" class="chip" data-pct="35">35%</button>
+            <button type="button" class="chip" data-pct="80">80%</button>
+            <button type="button" class="chip" data-pct="100">100%</button>
+          </div>
+          <div id="h-sugestao" class="dica" hidden></div>
+          <label class="chk-linha" id="h-sep-box" hidden><input id="h-sep-noct" type="checkbox" checked> <span>Separar a parte noturna (22h às 5h) na coluna <b>noturna</b></span></label>
+          <button type="button" class="btn link peq" id="h-manual-btn">Dividir em mais de um percentual</button>
+          <div id="h-manual" hidden>
+            <p class="dica">Preencha as horas (hh:mm) em cada coluna. A soma precisa bater com o horário.</p>
+            <div class="grade g5" id="h-colunas"></div>
+          </div>
+          <div id="h-conferencia" class="conferencia"></div>
+        </div>
+
+        <div class="passo">
+          <div class="passo-tit"><span class="num">4</span> Por quê?</div>
+          <div class="chips mini" id="h-motivos"></div>
+          <textarea id="h-just" rows="2" required aria-label="Justificativa" placeholder="Escreva o motivo ou toque numa opção acima"></textarea>
+        </div>
+
         <details id="h-jornada">
-          <summary>Jornada diferente da prevista? <small>(opcional)</small></summary>
+          <summary>Minha jornada foi diferente da prevista <small>(opcional)</small></summary>
           <div class="grade g4">
             <label>Entrada<input id="h-jent" type="time"></label>
             <label>Saída<input id="h-jsai" type="time"></label>
@@ -148,10 +181,10 @@
           </div>
         </details>
 
-        <label>Justificativa<textarea id="h-just" rows="2" required placeholder="ex.: cobertura de falta no T2, descarga de vagões..."></textarea></label>
+        <div id="h-confirma" class="confirma" hidden></div>
 
         <div class="acoes">
-          <button class="btn">Salvar lançamento</button>
+          <button class="btn grande">Salvar hora extra</button>
           <button type="button" id="h-cancelar" class="btn sec" hidden>Cancelar edição</button>
         </div>
         <p class="msg" hidden></p>
@@ -232,6 +265,6 @@
 
 </main>
 
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

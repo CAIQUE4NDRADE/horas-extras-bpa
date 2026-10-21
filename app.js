@@ -141,6 +141,7 @@ const ehSup = () => eu && (eu.papel === 'supervisor' || eu.papel === 'admin');
 const ehAdmin = () => eu && eu.papel === 'admin';
 
 function montarApp() {
+  document.body.classList.toggle('colab', !ehSup());
   $('#usuario').hidden = false;
   $('#u-nome').textContent = `${eu.nome} · ${eu.cs.toUpperCase()}`;
   $$('.so-sup').forEach(el => el.hidden = !ehSup());
@@ -191,6 +192,8 @@ function montarColunas() {
   $$('.col-pct').forEach(inp => {
     inp.addEventListener('input', () => { mascaraHora(inp); conferir(); });
   });
+  $('#h-motivos').innerHTML = MOTIVOS.map(m => `<button type="button" class="chip">${esc(m)}</button>`).join('');
+  $$('#h-motivos .chip').forEach(b => b.onclick = () => { $('#h-just').value = b.textContent; $('#h-just').focus(); });
 }
 function mascaraHora(inp) {
   const d = inp.value.replace(/\D/g, '').slice(0, 4);
@@ -207,18 +210,91 @@ function mostrarPrevisto() {
   $('#h-previsto').textContent = `Previsto: ${t.entrada} às ${t.saida}`;
 }
 
+// ---------- Percentual simples (chips) ----------
+// Motivos mais comuns: toque preenche a justificativa (dá para editar depois)
+const MOTIVOS = ['Cobertura de falta', 'Descarga de vagões', 'Carregamento', 'Fila de caminhões', 'Fechamento', 'Treinamento', 'Emergência / manutenção'];
+let pctEscolhido = null;   // 35 | 80 | 100
+let modoManual = false;
+
+function familia(pct) {
+  return { 35: ['min_35', null], 80: ['min_80', 'min_80n'], 100: ['min_100', 'min_100n'] }[pct];
+}
+function calcularDistribuicao(pct, ini, fim, separar) {
+  const out = Object.fromEntries(COLUNAS.map(c => [c.campo, 0]));
+  const total = duracao(ini, fim);
+  if (!pct || !total) return out;
+  const [base, noturna] = familia(pct);
+  const noct = noturna && separar ? minutosNoturnos(ini, fim) : 0;
+  out[base] = total - noct;
+  if (noturna) out[noturna] = noct;
+  return out;
+}
+function distribuir() {
+  if (modoManual || !pctEscolhido) return;
+  const d = calcularDistribuicao(pctEscolhido, $('#h-inicio').value, $('#h-fim').value, $('#h-sep-noct').checked);
+  COLUNAS.forEach(c => $('#h-' + c.campo).value = fmtMin(d[c.campo]));
+}
+function marcarChips() {
+  $$('#h-chips .chip').forEach(c => c.classList.toggle('ativo', !modoManual && +c.dataset.pct === pctEscolhido));
+  $('#h-manual').hidden = !modoManual;
+  $('#h-manual-btn').textContent = modoManual ? 'Voltar para escolha simples' : 'Dividir em mais de um percentual';
+}
+$$('#h-chips .chip').forEach(c => c.onclick = () => {
+  pctEscolhido = +c.dataset.pct; modoManual = false;
+  marcarChips(); conferir();
+});
+$('#h-manual-btn').onclick = () => {
+  modoManual = !modoManual;
+  if (!modoManual) { distribuir(); }
+  marcarChips(); conferir();
+};
+$('#h-sep-noct').addEventListener('change', conferir);
+$$('[data-dia]').forEach(b => b.onclick = () => {
+  const d = new Date(); d.setDate(d.getDate() + (+b.dataset.dia));
+  $('#h-data').value = isoDe(d); conferir();
+});
+
 function conferir() {
-  const total = duracao($('#h-inicio').value, $('#h-fim').value);
+  distribuir();
+  const ini = $('#h-inicio').value, fim = $('#h-fim').value, data = $('#h-data').value;
+  const total = duracao(ini, fim), noct = minutosNoturnos(ini, fim);
   mostrarAvisos();
+
+  // total do horário
+  $('#h-total').hidden = !total;
+  $('#h-total').innerHTML = total ? `Total: <b>${fmtMin(total, true)}</b>${noct ? ` <span>· ${fmtMin(noct, true)} no período noturno (22h–5h)</span>` : ''}` : '';
+
+  // almoço corrido só aparece quando a HE cai dentro do turno
+  const dentro = minutosDentroDoTurno(ini, fim, $('#h-turno').value);
+  $('#h-almoco-box').hidden = !(dentro > TOLERANCIA_TURNO || $('#h-almoco').checked);
+
+  // separar noturna
+  $('#h-sep-box').hidden = modoManual || !noct || !pctEscolhido || pctEscolhido === 35;
+
+  // sugestão domingo/feriado
+  const dom = data && dataDe(data).getDay() === 0, fer = data && feriados[data];
+  const sug = $('#h-sugestao');
+  sug.hidden = !(dom || fer) || pctEscolhido === 100 || modoManual;
+  sug.textContent = (dom || fer) ? `📅 ${fer ? 'Feriado (' + fer + ')' : 'Domingo'}: normalmente é 100%.` : '';
+
+  // conferência da soma (só no modo manual)
   const valores = COLUNAS.map(c => toMin($('#h-' + c.campo).value));
   const box = $('#h-conferencia');
-  if (valores.some(isNaN)) { box.className = 'conferencia nao-bate'; box.textContent = 'Use o formato hh:mm nas colunas (ex.: 01:15).'; return; }
-  const soma = valores.reduce((a, b) => a + b, 0);
-  if (!total && !soma) { box.className = 'conferencia'; box.textContent = ''; return; }
-  const bate = total === soma;
-  box.className = 'conferencia ' + (bate ? 'bate' : 'nao-bate');
-  box.textContent = `Pelo horário: ${fmtMin(total, true)}  ·  Soma das colunas: ${fmtMin(soma, true)}` +
-    (bate ? '  ✓' : '  — não bate, confira antes de salvar');
+  const soma = valores.some(isNaN) ? NaN : valores.reduce((a, b) => a + b, 0);
+  if (!modoManual) { box.className = 'conferencia'; box.textContent = ''; }
+  else if (isNaN(soma)) { box.className = 'conferencia nao-bate'; box.textContent = 'Use o formato hh:mm nas colunas (ex.: 01:15).'; }
+  else if (!total && !soma) { box.className = 'conferencia'; box.textContent = ''; }
+  else {
+    const bate = total === soma;
+    box.className = 'conferencia ' + (bate ? 'bate' : 'nao-bate');
+    box.textContent = `Pelo horário: ${fmtMin(total, true)}  ·  Soma das colunas: ${fmtMin(soma, true)}` + (bate ? '  ✓' : '  — não bate, confira');
+  }
+
+  // resumo final antes de salvar
+  const conf = $('#h-confirma');
+  const partes = COLUNAS.filter((c, i) => valores[i] > 0).map((c, i) => `${fmtMin(toMin($('#h-' + c.campo).value), true)} em ${c.rotulo}`);
+  conf.hidden = !(data && total && partes.length);
+  if (!conf.hidden) conf.innerHTML = `<b>Confira antes de salvar:</b><br>${diaSemana(data)} ${br(data)} · ${$('#h-turno').value} · ${ini} às ${fim}<br>${partes.join(' + ')}${$('#h-almoco').checked ? ' · almoço corrido' : ''}`;
 }
 
 // Avisos que ajudam o operador a escolher a coluna (não bloqueiam, exceto período fechado)
@@ -228,12 +304,6 @@ function mostrarAvisos() {
   if (data && periodoFechado(data)) {
     av.push(['erro', `🔒 O período ${rotuloPeriodo(periodoDaData(data))} está fechado. ${ehAdmin() ? 'Como admin, você ainda pode lançar.' : 'Não é possível lançar nesta data.'}`]);
   }
-  if (data) {
-    const dom = dataDe(data).getDay() === 0, fer = feriados[data];
-    if (fer || dom) av.push(['info', `📅 ${fer ? 'Feriado: ' + esc(fer) : 'Domingo'}. Normalmente vai na coluna 100%${minutosNoturnos(ini, fim) ? ' (e a parte noturna em 100% noturna)' : ''}.`]);
-  }
-  const noct = minutosNoturnos(ini, fim);
-  if (noct) av.push(['info', `🌙 Desse horário, <b>${fmtMin(noct, true)}</b> caiu entre 22h e 5h (período noturno).`]);
   const dentro = minutosDentroDoTurno(ini, fim, $('#h-turno').value);
   const almoco = $('#h-almoco').checked;
   if (almoco) {
@@ -241,7 +311,7 @@ function mostrarAvisos() {
     if (total > 70) av.push(['alerta', `⚠ Almoço corrido normalmente é 1h, e aqui deu ${fmtMin(total, true)}. Confira os horários.`]);
   } else if (dentro > TOLERANCIA_TURNO) {
     const t = TURNOS[$('#h-turno').value];
-    av.push(['alerta', `⚠ ${fmtMin(dentro, true)} dessa HE cai dentro do horário do ${$('#h-turno').value} (${t.entrada} às ${t.saida}). Confira o turno e os horários. Se foi almoço corrido, marque a opção "Almoço corrido". Se a jornada foi diferente, informe em "Jornada diferente da prevista".`]);
+    av.push(['alerta', `⚠ ${fmtMin(dentro, true)} dessa HE cai dentro do horário do ${$('#h-turno').value} (${t.entrada} às ${t.saida}). Confira o turno e os horários. Se foi almoço corrido, marque "Almoço corrido" logo abaixo do horário.`]);
   }
   if (total > 120) av.push(['alerta', `⚠ Acima de 2h de hora extra no dia (${fmtMin(total, true)}). O limite legal é 2h, salvo exceções. Explique bem na justificativa.`]);
   $('#h-avisos').innerHTML = av.map(([t, txt]) => `<div class="aviso-l ${t}">${txt}</div>`).join('');
@@ -255,6 +325,7 @@ function limparForm() {
   $('#h-jornada').open = false;
   $('#t-lancar').textContent = 'Lançar hora extra';
   $('#h-cancelar').hidden = true;
+  pctEscolhido = null; modoManual = false; marcarChips();
   mostrarPrevisto(); conferir(); msg($('#f-he'), '');
 }
 $('#h-cancelar').onclick = limparForm;
@@ -279,7 +350,11 @@ $('#f-he').onsubmit = async e => {
     if (isNaN(v)) return msg(f, `Valor inválido em ${c.rotulo}. Use hh:mm.`);
     reg[c.campo] = v;
   }
+  if (!duracao(reg.inicio, reg.fim)) return msg(f, 'Informe o horário em que a HE começou e terminou (passo 2).');
+  if (!modoManual && !pctEscolhido) return msg(f, 'Escolha o percentual da hora extra (passo 3).');
   if (!somaColunas(reg)) return msg(f, 'Preencha as horas em pelo menos uma coluna de percentual.');
+  if (modoManual && somaColunas(reg) !== duracao(reg.inicio, reg.fim) &&
+      !confirm('A soma das colunas não bate com o horário. Salvar mesmo assim?')) return;
   if (!reg.justificativa) return msg(f, 'A justificativa é obrigatória.');
   if (periodoFechado(reg.data) && !ehAdmin()) return msg(f, 'Esse período já está fechado. Fale com o administrador.');
 
@@ -375,7 +450,13 @@ async function carregarMinhas() {
   cacheMinhas = data;
 
   const aprov = data.filter(r => r.status === 'aprovado');
-  $('#m-totais').innerHTML = COLUNAS.map(c => {
+  if (!ehSup()) {   // colaborador: resumo simples
+    const q = st => data.filter(r => r.status === st).length;
+    $('#m-totais').innerHTML = `<div class="rm-cards">
+      <div class="rm ok"><span>Aprovadas</span><b>${fmtMin(aprov.reduce((a, r) => a + somaColunas(r), 0), true)}</b><small>${aprov.length} lançamento(s)</small></div>
+      <div class="rm pend"><span>Pendentes</span><b>${q('pendente')}</b><small>aguardando</small></div>
+      <div class="rm rec"><span>Recusadas</span><b>${q('recusado')}</b><small>${q('recusado') ? 'corrija abaixo' : 'nenhuma'}</small></div></div>`;
+  } else $('#m-totais').innerHTML = COLUNAS.map(c => {
     const s = aprov.reduce((a, r) => a + r[c.campo], 0);
     return `<div class="tot">${c.rotulo}<b>${fmtMin(s, true)}</b></div>`;
   }).join('') + `<div class="tot">Pendentes<b>${data.filter(r => r.status === 'pendente').length}</b></div>`;
@@ -403,7 +484,7 @@ function itemHTML(r, meu, opc = {}) {
   let botoes = `<div class="botoes">${btnHist}</div>`;
   if (meu && travado) botoes = `<div class="botoes"><span class="trava">🔒 Período fechado</span>${btnHist}</div>`;
   else if (meu && r.status !== 'aprovado') botoes = `<div class="botoes">
-      <button class="btn sec peq" onclick="editar(${r.id})">Editar</button>
+      <button class="btn ${r.status === 'recusado' ? 'ok' : 'sec'} peq" onclick="editar(${r.id})">${r.status === 'recusado' ? 'Corrigir' : 'Editar'}</button>
       <button class="btn perigo peq" onclick="excluir(${r.id}, this)">Excluir</button>${btnHist}</div>`;
   if (!meu) botoes = `<div class="botoes">
       ${opc.semLote ? '' : `<label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h || noTurno ? 0 : 1}"> Selecionar</label>`}
@@ -442,6 +523,14 @@ window.editar = id => {
   $('#h-just').value = r.justificativa;
   $('#h-almoco').checked = !!r.almoco_corrido;
   COLUNAS.forEach(c => $('#h-' + c.campo).value = fmtMin(r[c.campo]));
+  // descobre se dá para mostrar na escolha simples
+  pctEscolhido = null; modoManual = true;
+  for (const pct of [35, 80, 100]) for (const sep of [true, false]) {
+    const d = calcularDistribuicao(pct, r.inicio, r.fim, sep);
+    if (COLUNAS.every(c => (d[c.campo] || 0) === (r[c.campo] || 0))) { pctEscolhido = pct; modoManual = false; $('#h-sep-noct').checked = sep; }
+  }
+  if (pctEscolhido && !modoManual) { /* ok */ } else { pctEscolhido = null; modoManual = true; }
+  marcarChips();
   mostrarPrevisto(); conferir(); msg($('#f-he'), '');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };

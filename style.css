@@ -433,3 +433,8 @@ body.contraste input, body.contraste select, body.contraste textarea, body.contr
 body.contraste .topo { background: #003318; }
 body.contraste a, body.contraste .btn.link { text-decoration-thickness: 2px; }
 body.contraste .dica, body.contraste small { color: #1f1f1f; }
+.detalhe-colab { margin-top: 18px; padding-top: 14px; border-top: 2px solid var(--linha); }
+.detalhe-colab h3 { margin: 0 0 10px; font-size: 15px; color: var(--pri-escuro); }
+.detalhe-colab h3 small { font-weight: 400; color: var(--suave); }
+.btn.link.perigo-link { color: var(--erro); }
+.btn.link.perigo-link:hover { color: #6e0f0a; }

@@ -178,6 +178,7 @@ function abrirPainel(id) {
   // painel e aprovar usam os mesmos ids nos itens: só um fica montado por vez
   if (id !== 'p-aprovar') $('#a-lista').innerHTML = '';
   if (id !== 'p-painel') $('#pn-conteudo').innerHTML = '';
+  if (id !== 'p-resumo') { $('#r-detalhe').hidden = true; $('#r-detalhe').innerHTML = ''; }
   if (id === 'p-minhas') carregarMinhas();
   if (id === 'p-painel') carregarPainel();
   if (id === 'p-aprovar') carregarPendentes();
@@ -432,6 +433,7 @@ window.verHistorico = async (id, btn) => {
         .map(c => `${ROTULOS_CAMPO[c]}: ${valorCampo(c, h.antes[c])} → <b>${valorCampo(c, h.depois[c])}</b>`).join('<br>');
     }
     if (h.acao === 'recusou' && h.depois) det = 'Motivo: ' + esc(h.depois.motivo_recusa);
+    if (h.acao === 'excluiu' && h.depois?.motivo_exclusao) det = 'Motivo da exclusão: ' + esc(h.depois.motivo_exclusao);
     const quem = nomes[h.alterado_por] || (h.alterado_por ? 'usuário' : 'sistema');
     return `<div class="hist-linha"><b>${h.acao}</b> · ${esc(quem)} · ${new Date(h.alterado_em).toLocaleString('pt-BR')}
       ${det ? `<div class="hist-det">${det}</div>` : ''}</div>`;
@@ -489,10 +491,12 @@ function itemHTML(r, meu, opc = {}) {
   else if (meu && r.status !== 'aprovado') botoes = `<div class="botoes">
       <button class="btn ${r.status === 'recusado' ? 'ok' : 'sec'} peq" onclick="editar(${r.id})">${r.status === 'recusado' ? 'Corrigir' : 'Editar'}</button>
       <button class="btn perigo peq" onclick="excluir(${r.id}, this)">Excluir</button>${btnHist}</div>`;
-  if (!meu) botoes = `<div class="botoes">
+  const btnExcAdm = ehAdmin() && !meu ? `<button class="btn link peq perigo-link" onclick="excluirAdmin(${r.id}, this)">Excluir</button>` : '';
+  if (!meu && (opc.adminLista && r.status !== 'pendente')) botoes = `<div class="botoes">${btnHist}${btnExcAdm}</div>`;
+  else if (!meu) botoes = `<div class="botoes">
       ${opc.semLote ? '' : `<label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h || noTurno ? 0 : 1}"> Selecionar</label>`}
       <button class="btn ok peq" onclick="decidir(${r.id}, true, this)">Aprovar</button>
-      <button class="btn perigo peq" onclick="mostrarRecusa(${r.id})">Recusar</button>${btnHist}</div>
+      <button class="btn perigo peq" onclick="mostrarRecusa(${r.id})">Recusar</button>${btnHist}${btnExcAdm}</div>
     <div class="recusa" id="rec-${r.id}" hidden>
       <input id="rec-txt-${r.id}" placeholder="Motivo da recusa">
       <button class="btn perigo peq" onclick="decidir(${r.id}, false, this)">Confirmar</button></div>`;
@@ -609,7 +613,7 @@ window.decidir = async (id, aprovar, btn) => {
 
 // ===================== RESUMO =====================
 let cacheResumo = [];
-$('#r-periodo').onchange = carregarResumo;
+$('#r-periodo').onchange = () => { fecharLancamentos(); carregarResumo(); };
 
 function mostrarStatusPeriodo(chave) {
   const fechado = fechados.has(chave);
@@ -676,7 +680,8 @@ async function carregarResumo() {
       ${COLUNAS.map(c => `<td class="n">${fmtMin(l[c.campo])}</td>`).join('')}
       <td class="n"><b>${fmtMin(l.total)}</b></td>
       <td class="n">${l.pendentes ? `<span class="alerta">${l.pendentes}</span>` : ''}</td>
-      <td><button class="btn sec peq" onclick="window.open('folha.html?c=${l.id}&p=${p.chave}','_blank')">Folha</button></td>
+      <td class="acoes-linha"><button class="btn sec peq" onclick="window.open('folha.html?c=${l.id}&p=${p.chave}','_blank')">Folha</button>
+        ${ehAdmin() ? `<button class="btn sec peq" onclick="verLancamentos('${l.id}', this)">Lançamentos</button>` : ''}</td>
     </tr>`).join('')}</tbody></table>`;
 }
 
@@ -988,6 +993,41 @@ async function carregarPainel() {
   const bp = $('#pn-btn-pessoas');
   if (bp) bp.onclick = () => { const l = $('#pn-pessoas'); l.hidden = !l.hidden; };
 }
+
+// ===================== ADMIN: ver/excluir lançamentos =====================
+let detalheColab = null;
+window.verLancamentos = async (id, btn) => {
+  const p = periodoDe($('#r-periodo').value), box = $('#r-detalhe');
+  detalheColab = id;
+  carregandoBotao(btn, true, '...');
+  const { data, error } = await sb.from('horas_extras')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo), aprovador:colaboradores!horas_extras_aprovado_por_fkey(nome)')
+    .eq('colaborador_id', id).gte('data', p.ini).lte('data', p.fim).order('data');
+  carregandoBotao(btn, false);
+  if (error) return alert(erroAmigavel(error));
+  const nome = data[0]?.colaborador?.nome || cacheResumo.find(c => c.id === id)?.nome || '';
+  box.innerHTML = `<div class="cab-bloco"><h3>Lançamentos de ${esc(nome)} <small>(${rotuloPeriodo(p.chave)}, todos os status)</small></h3>
+      <button class="btn link peq" onclick="fecharLancamentos()">Fechar</button></div>
+    ${data.length ? data.map(r => itemHTML(r, r.colaborador_id === eu.id, { semLote: true, adminLista: true })).join('') : '<p class="vazio">Nenhum lançamento neste período.</p>'}`;
+  box.hidden = false;
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+window.fecharLancamentos = () => { $('#r-detalhe').hidden = true; $('#r-detalhe').innerHTML = ''; detalheColab = null; };
+
+window.excluirAdmin = async (id, btn) => {
+  const motivo = prompt('Excluir este lançamento?\n\nInforme o motivo (fica registrado no histórico):');
+  if (motivo === null) return;
+  if (!motivo.trim()) return alert('O motivo é obrigatório para excluir.');
+  carregandoBotao(btn, true, 'Excluindo...');
+  const { error } = await sb.rpc('admin_excluir_he', { p_id: id, p_motivo: motivo.trim() });
+  carregandoBotao(btn, false);
+  if (error) return alert(erroAmigavel(error));
+  // recarrega a tela em que o admin está
+  if (!$('#p-painel').hidden) carregarPainel();
+  else if (!$('#p-aprovar').hidden) carregarPendentes();
+  else if (!$('#p-resumo').hidden) { await carregarResumo(); if (detalheColab) { const b = document.createElement('button'); verLancamentos(detalheColab, b); } }
+  if (ehSup()) contarPendentes();
+};
 
 // ===================== FERIADOS (admin) =====================
 async function carregarFeriadosAdmin() {

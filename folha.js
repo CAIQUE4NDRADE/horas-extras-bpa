@@ -14,13 +14,23 @@ async function carregar() {
     if (!session) { $('#status-carga').textContent = 'Faça login no site primeiro.'; return; }
     const id = params.get('c') || session.user.id;
     const [{ data: c, error: e1 }, { data: hes, error: e2 }] = await Promise.all([
-      sb.from('colaboradores').select('nome, cs, cargo, supervisor:colaboradores!colaboradores_supervisor_id_fkey(nome)').eq('id', id).maybeSingle(),
+      sb.from('colaboradores').select('nome, cs, cargo, supervisor_id').eq('id', id).maybeSingle(),
       sb.from('horas_extras')
         .select('*, aprovador:colaboradores!horas_extras_aprovado_por_fkey(nome)')
         .eq('colaborador_id', id).gte('data', per.ini).lte('data', per.fim).neq('status', 'recusado')
     ]);
-    if (e1 || e2 || !c) { $('#status-carga').textContent = 'Sem acesso a este colaborador.'; return; }
+    const erro = e1 || e2;
+    if (erro || !c) {
+      $('#status-carga').textContent = erro ? 'Erro: ' + erro.message : 'Sem acesso a este colaborador.';
+      console.error(e1, e2);
+      return;
+    }
     colab = c; registros = hes;
+    // nome do gestor em consulta separada (se não achar, a linha fica em branco)
+    if (c.supervisor_id) {
+      const { data: s } = await sb.from('colaboradores').select('nome').eq('id', c.supervisor_id).maybeSingle();
+      colab.supervisor = s;
+    }
   }
 
   $('#f-nome').textContent = colab.nome;

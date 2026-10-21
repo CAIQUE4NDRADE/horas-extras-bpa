@@ -146,6 +146,7 @@ function montarApp() {
   $('#u-nome').textContent = `${eu.nome} · ${eu.cs.toUpperCase()}`;
   $$('.so-sup').forEach(el => el.hidden = !ehSup());
   $$('.so-admin').forEach(el => el.hidden = !ehAdmin());
+  $('#m-imprimir').hidden = !ehSup();   // impressão da folha fica com supervisor/admin
   preencherPeriodos($('#m-periodo'));
   preencherPeriodos($('#r-periodo'));
   preencherPeriodos($('#pn-periodo'));

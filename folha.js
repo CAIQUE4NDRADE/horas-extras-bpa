@@ -24,10 +24,16 @@ async function carregar() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return status('Faça login no site primeiro.');
 
+  // impressão é só para supervisor/admin
+  const { data: eu } = await sb.from('colaboradores').select('id, papel').eq('id', session.user.id).maybeSingle();
+  if (!eu || eu.papel === 'colaborador') {
+    container.innerHTML = '<div class="vazio-folhas">A impressão da folha é feita pelo supervisor.</div>';
+    return status('Sem permissão para imprimir.');
+  }
+
   // 1) quem entra na impressão
   let colabs;
   if (params.get('todos')) {
-    const { data: eu } = await sb.from('colaboradores').select('id, papel').eq('id', session.user.id).maybeSingle();
     let q = sb.from('colaboradores').select('id, nome, cs, cargo, supervisor_id').eq('ativo', true).order('nome');
     if (eu?.papel !== 'admin') q = q.eq('supervisor_id', session.user.id);
     const { data, error } = await q;

@@ -70,6 +70,7 @@ async function carregar() {
   // na impressão da equipe, só sai folha de quem tem HE no período
   if (params.get('todos')) folhas = folhas.filter(f => f.registros.length);
   desenhar();
+  if (params.get('baixar')) setTimeout(baixarPDFs, 300);
 }
 
 function desenhar() {
@@ -86,6 +87,8 @@ function desenhar() {
     return status(rotuloPeriodo(chave));
   }
 
+  $('#btn-pdfs').hidden = false;
+  $('#btn-pdfs').textContent = folhas.length > 1 ? `⬇ Baixar ${folhas.length} PDFs (zip)` : '⬇ Baixar PDF';
   container.innerHTML = folhas.map(() => molde).join('');
   const els = container.querySelectorAll('.folha');
   folhas.forEach((f, i) => preencher(els[i], f, incluirPend));
@@ -157,6 +160,59 @@ function demo() {
     { ...base, data: dia(22), turno: 'T1', inicio: '15:45', fim: '18:00', min_80: 135, justificativa: 'Atendimento de fila', status: 'pendente', aprovador: null }
   ];
 }
+
+// ---------- PDFs individuais para o histórico na rede ----------
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+function nomeArquivo(colab) {
+  const [y, m] = chave.split('-');
+  const limpa = t => String(t || '').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
+  // ex.: "HE 2026-10 Outubro (11-10 a 10-11) - Fulano de Tal - CS338104.pdf"
+  const ini = br(per.ini).slice(0, 5).replace('/', '-'), fim = br(per.fim).slice(0, 5).replace('/', '-');
+  return `HE ${y}-${m} ${MESES[+m - 1]} (${ini} a ${fim}) - ${limpa(colab.nome)} - ${limpa(colab.cs).toUpperCase()}.pdf`;
+}
+
+async function baixarPDFs() {
+  if (!window.html2canvas || !window.jspdf || !window.JSZip) return alert('Não consegui carregar as bibliotecas de PDF. Confira a internet e recarregue a página.');
+  if (!folhas.length) return alert('Nenhuma folha para gerar neste período.');
+  const pend = folhas.reduce((a, f) => a + f.registros.filter(r => r.status === 'pendente').length, 0);
+  if (pend && !$('#incluir-pend').checked &&
+      !confirm(`Atenção: ${pend} lançamento(s) ainda pendente(s) não vão aparecer nos PDFs.\n\nGerar mesmo assim?`)) return;
+
+  const btn = $('#btn-pdfs');
+  btn.disabled = true;
+  const { jsPDF } = window.jspdf;
+  const els = container.querySelectorAll('.folha');
+  const zip = new JSZip();
+  const usados = new Set();
+  try {
+    for (let i = 0; i < els.length; i++) {
+      btn.textContent = `Gerando ${i + 1}/${els.length}...`;
+      const canvas = await html2canvas(els[i], { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+      const larg = 297 - 14, alt = canvas.height * larg / canvas.width;
+      const h = Math.min(alt, 210 - 14), w = h === alt ? larg : canvas.width * h / canvas.height;
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', (297 - w) / 2, 7, w, h);
+      let nome = nomeArquivo(folhas[i].colab);
+      if (usados.has(nome)) nome = nome.replace('.pdf', ` (${i + 1}).pdf`);
+      usados.add(nome);
+      if (els.length === 1) { pdf.save(nome); btn.disabled = false; desenhar(); return; }
+      zip.file(nome, pdf.output('blob'));
+    }
+    btn.textContent = 'Compactando...';
+    const [y, m] = chave.split('-');
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Folhas HE ${y}-${m} ${MESES[+m - 1]}.zip`;
+    a.click();
+  } catch (e) {
+    console.error(e);
+    alert('Erro ao gerar os PDFs: ' + e.message);
+  }
+  btn.disabled = false;
+  desenhar();
+}
+$('#btn-pdfs').onclick = baixarPDFs;
 
 $('#incluir-pend').onchange = desenhar;
 carregar();

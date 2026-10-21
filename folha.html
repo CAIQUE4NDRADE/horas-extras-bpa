@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Folha de Horas Extras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=12"></script>
-<script src="comum.js?v=12"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="config.js?v=13"></script>
+<script src="comum.js?v=13"></script>
 <style>
   @page { size: A4 landscape; margin: 7mm; }
   * { box-sizing: border-box; }
@@ -62,6 +65,7 @@
 <body>
   <div class="barra">
     <button onclick="window.print()">🖨 Imprimir</button>
+    <button id="btn-pdfs" hidden>⬇ Baixar PDFs</button>
     <label><input type="checkbox" id="incluir-pend"> Incluir pendentes</label>
     <span id="status-carga">Carregando...</span>
   </div>
@@ -141,6 +145,6 @@
     </div>
   </div>
 
-<script src="folha.js?v=12"></script>
+<script src="folha.js?v=13"></script>
 </body>
 </html>

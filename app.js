@@ -623,6 +623,7 @@ function mostrarStatusPeriodo(chave) {
   $('#r-fechar').hidden = !ehAdmin();
 }
 
+$('#r-pdfs').onclick = () => window.open(`folha.html?todos=1&baixar=1&p=${$('#r-periodo').value}`, '_blank');
 $('#r-todas').onclick = () => window.open(`folha.html?todos=1&p=${$('#r-periodo').value}`, '_blank');
 
 $('#r-fechar').onclick = async () => {

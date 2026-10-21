@@ -7,14 +7,14 @@ async function carregar() {
   const per = periodoDe(chave);
 
   if (params.get('demo')) {
-    colab = { nome: 'Fulano de Tal', cs: 'cs000000', cargo: 'Operador de Terminal' };
+    colab = { nome: 'Fulano de Tal', cs: 'cs000000', cargo: 'Operador de Terminal', supervisor: { nome: 'Supervisor Exemplo' } };
     registros = demo(per);
   } else {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { $('#status-carga').textContent = 'Faça login no site primeiro.'; return; }
     const id = params.get('c') || session.user.id;
     const [{ data: c, error: e1 }, { data: hes, error: e2 }] = await Promise.all([
-      sb.from('colaboradores').select('nome, cs, cargo').eq('id', id).maybeSingle(),
+      sb.from('colaboradores').select('nome, cs, cargo, supervisor:colaboradores!colaboradores_supervisor_id_fkey(nome)').eq('id', id).maybeSingle(),
       sb.from('horas_extras')
         .select('*, aprovador:colaboradores!horas_extras_aprovado_por_fkey(nome)')
         .eq('colaborador_id', id).gte('data', per.ini).lte('data', per.fim).neq('status', 'recusado')
@@ -26,6 +26,8 @@ async function carregar() {
   $('#f-nome').textContent = colab.nome;
   $('#f-cs').textContent = colab.cs.toUpperCase();
   $('#f-cargo').textContent = colab.cargo;
+  $('#a-func').textContent = colab.nome;
+  $('#a-gestor').textContent = colab.supervisor?.nome || '';
   $('#f-periodo').textContent = 'Período: ' + rotuloPeriodo(chave);
   document.title = `HE ${colab.nome} ${rotuloPeriodo(chave)}`;
   $('#status-carga').textContent = rotuloPeriodo(chave);
@@ -72,7 +74,7 @@ function desenhar(per) {
   html += `<tr class="tot">
     <td colspan="7" style="text-align:right">Total:</td>
     ${COLUNAS.map(c => `<td>${fmtMin(tot[c.campo], true)}</td>`).join('')}
-    <td colspan="2" class="esq">Assinatura do funcionário:</td>
+    <td colspan="2"></td>
   </tr>`;
   $('#linhas').innerHTML = html;
 }

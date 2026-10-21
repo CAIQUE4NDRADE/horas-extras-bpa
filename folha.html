@@ -11,8 +11,8 @@
   @page { size: A4 landscape; margin: 7mm; }
   * { box-sizing: border-box; }
   body { margin: 0; background: #e9ebe8; font: 9pt/1.2 Arial, Helvetica, sans-serif; color: #000; }
-  .barra { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: #6d2077; color: #fff; font: 14px system-ui, sans-serif; }
-  .barra button { background: #fff; color: #6d2077; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+  .barra { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: linear-gradient(100deg,#006630,#00843d 55%,#78be20); color: #fff; font: 14px system-ui, sans-serif; }
+  .barra button { background: #fff; color: #00843d; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
   .barra label { display: flex; gap: 6px; align-items: center; }
   .aviso { background: #fff2d6; color: #7a4f00; padding: 8px 16px; font: 13px system-ui, sans-serif; }
   .folha { background: #fff; width: 283mm; margin: 12px auto; padding: 6mm; box-shadow: 0 1px 6px rgba(0,0,0,.15); }
@@ -32,7 +32,7 @@
   .empresa span { display: block; border: 1px solid #000; text-align: center; padding: 1.3mm; margin-bottom: 2.5mm; }
 
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  th, td { border: 1px solid #000; padding: 0 .8mm; height: 3.7mm; text-align: center; font-size: 7pt; line-height: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  th, td { border: 1px solid #000; padding: 0 .8mm; height: 3.3mm; text-align: center; font-size: 6.9pt; line-height: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   th { font-weight: 700; background: #fff; white-space: normal; line-height: 1.1; height: 5mm; }
   td.esq { text-align: left; }
   tr.fds td { background: #f2f2f2; }
@@ -41,7 +41,11 @@
   td.ass { font-size: 6.6pt; }
   td:first-child { font-size: 7pt; }
 
-  .rodape { display: grid; grid-template-columns: 1fr 1.6fr; gap: 6mm; margin-top: 1.5mm; font-size: 6.4pt; line-height: 1.3; }
+  .assinaturas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10mm; margin: 5.5mm 6mm 0; }
+  .assinaturas div { border-top: 1px solid #000; text-align: center; padding-top: .8mm; font-size: 7pt; line-height: 1.25; }
+  .assinaturas b { display: block; font-size: 7.4pt; }
+  .assinaturas span { color: #333; }
+  .rodape { display: grid; grid-template-columns: 1fr 1.6fr; gap: 6mm; margin-top: 1.5mm; font-size: 6.1pt; line-height: 1.25; }
   .rodape b { font-size: 7.2pt; }
   .gerado { font-size: 6pt; color: #555; margin-top: 1mm; }
 
@@ -110,6 +114,12 @@
       </thead>
       <tbody id="linhas"></tbody>
     </table>
+
+    <div class="assinaturas">
+      <div><b>Assinatura do Funcionário</b><span id="a-func"></span></div>
+      <div><b>Assinatura do Gestor</b><span id="a-gestor"></span></div>
+      <div><b>Lançado no sistema por</b><span>Nome: ____________________ &nbsp; Data: ___/___/_____</span></div>
+    </div>
 
     <div class="rodape">
       <div>

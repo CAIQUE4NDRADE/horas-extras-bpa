@@ -913,7 +913,7 @@ async function carregarPainel() {
   const top5 = Object.values(porColab).sort((a, b) => b.valor - a.valor).slice(0, 5);
 
   // por turno
-  const turnos = ['T1', 'T2', 'T3'].map(t => ({ rotulo: `${t} (${TURNOS[t].entrada})`, valor: soma(hes.filter(r => r.turno === t)) }));
+  const turnos = Object.keys(TURNOS).map(t => ({ rotulo: `${t} (${TURNOS[t].entrada})`, valor: soma(hes.filter(r => r.turno === t)) }));
 
   const vazio = !hes.length;
   const porPct = COLUNAS.map(c => ({ rotulo: c.rotulo, valor: hes.reduce((a, r) => a + (r[c.campo] || 0), 0) }));

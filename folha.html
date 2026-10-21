@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Folha de Horas Extras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=6"></script>
-<script src="comum.js?v=6"></script>
+<script src="config.js?v=11"></script>
+<script src="comum.js?v=11"></script>
 <style>
   @page { size: A4 landscape; margin: 7mm; }
   * { box-sizing: border-box; }
@@ -28,9 +28,9 @@
   .campos div { display: grid; grid-template-columns: 14mm 1fr; align-items: center; margin-bottom: 1.2mm; }
   .campos b { text-align: right; padding-right: 2mm; }
   .campos span { border: 1px solid #000; min-height: 5.4mm; padding: 1mm 2mm; display: flex; align-items: center; font-size: 10pt; }
-  .turnos { border: 1px solid #000; text-align: center; }
-  .turnos div:first-child { font-weight: 700; border-bottom: 1px solid #000; padding: 1.2mm; }
-  .turnos div { padding: .5mm; }
+  .turnos { border: 1px solid #000; text-align: center; display: grid; grid-template-columns: 1fr 1fr; }
+  .turnos div:first-child { font-weight: 700; border-bottom: 1px solid #000; padding: 1.2mm; grid-column: 1 / -1; }
+  .turnos div { padding: 1.2mm .5mm; }
   .empresa span { display: block; border: 1px solid #000; text-align: center; padding: 1.3mm; margin-bottom: 2.5mm; }
 
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -84,6 +84,7 @@
         <div>T1: 07:15 às 15:45</div>
         <div>T2: 15:30 às 00:00</div>
         <div>T3: 23:50 às 07:38</div>
+        <div>T4: 11:30 às 20:00</div>
       </div>
       <div class="empresa">
         <span>Raízen Combustíveis</span>
@@ -140,6 +141,6 @@
     </div>
   </div>
 
-<script src="folha.js?v=6"></script>
+<script src="folha.js?v=11"></script>
 </body>
 </html>

@@ -5,7 +5,8 @@ const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY)
 const TURNOS = {
   T1: { entrada: '07:15', saida: '15:45' },
   T2: { entrada: '15:30', saida: '00:00' },
-  T3: { entrada: '23:50', saida: '07:38' }
+  T3: { entrada: '23:50', saida: '07:38' },
+  T4: { entrada: '11:30', saida: '20:00' }
 };
 
 const COLUNAS = [

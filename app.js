@@ -172,6 +172,9 @@ $$('.aba').forEach(b => b.onclick = () => abrirPainel(b.dataset.painel));
 function abrirPainel(id) {
   $$('.aba').forEach(b => b.classList.toggle('ativa', b.dataset.painel === id));
   $$('.painel').forEach(p => p.hidden = p.id !== id);
+  // painel e aprovar usam os mesmos ids nos itens: só um fica montado por vez
+  if (id !== 'p-aprovar') $('#a-lista').innerHTML = '';
+  if (id !== 'p-painel') $('#pn-conteudo').innerHTML = '';
   if (id === 'p-minhas') carregarMinhas();
   if (id === 'p-painel') carregarPainel();
   if (id === 'p-aprovar') carregarPendentes();
@@ -385,7 +388,7 @@ function detalheColunas(r) {
   return COLUNAS.filter(c => r[c.campo]).map(c => `${c.rotulo}: <b>${fmtMin(r[c.campo])}</b>`).join(' · ');
 }
 
-function itemHTML(r, meu) {
+function itemHTML(r, meu, opc = {}) {
   const total = duracao(r.inicio, r.fim), soma = somaColunas(r);
   const diverge = total !== soma, acima2h = Math.max(total, soma) > 120;
   const noTurno = !r.almoco_corrido && minutosDentroDoTurno(r.inicio, r.fim, r.turno) > TOLERANCIA_TURNO;
@@ -403,7 +406,7 @@ function itemHTML(r, meu) {
       <button class="btn sec peq" onclick="editar(${r.id})">Editar</button>
       <button class="btn perigo peq" onclick="excluir(${r.id}, this)">Excluir</button>${btnHist}</div>`;
   if (!meu) botoes = `<div class="botoes">
-      <label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h || noTurno ? 0 : 1}"> Selecionar</label>
+      ${opc.semLote ? '' : `<label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h || noTurno ? 0 : 1}"> Selecionar</label>`}
       <button class="btn ok peq" onclick="decidir(${r.id}, true, this)">Aprovar</button>
       <button class="btn perigo peq" onclick="mostrarRecusa(${r.id})">Recusar</button>${btnHist}</div>
     <div class="recusa" id="rec-${r.id}" hidden>
@@ -509,7 +512,7 @@ window.decidir = async (id, aprovar, btn) => {
   const { error } = await sb.rpc('decidir_he', { p_id: id, p_aprovar: aprovar, p_motivo: motivo });
   carregandoBotao(btn, false);
   if (error) return alert(erroAmigavel(error));
-  carregarPendentes();
+  if (!$('#p-painel').hidden) { carregarPainel(); contarPendentes(); } else carregarPendentes();
 };
 
 // ===================== RESUMO =====================
@@ -712,6 +715,41 @@ window.salvarColab = async btn => {
 // ===================== PAINEL (supervisor/admin) =====================
 $('#pn-periodo').onchange = carregarPainel;
 $('#pn-atualizar').onclick = carregarPainel;
+$('#pn-lancar').onclick = () => abrirPainel('p-lancar');
+
+// Gráfico de colunas por dia (aprovadas + pendentes empilhadas)
+function graficoDias(p, hes) {
+  const dias = [];
+  for (let d = dataDe(p.ini); isoDe(d) <= p.fim; d.setDate(d.getDate() + 1)) {
+    const iso = isoDe(d), doDia = hes.filter(r => r.data === iso);
+    const ap = doDia.filter(r => r.status === 'aprovado').reduce((a, r) => a + somaColunas(r), 0);
+    const pe = doDia.filter(r => r.status === 'pendente').reduce((a, r) => a + somaColunas(r), 0);
+    dias.push({ iso, ap, pe, dom: d.getDay() === 0, fer: !!feriados[iso] });
+  }
+  const max = Math.max(60, ...dias.map(x => x.ap + x.pe));
+  const topo = Math.ceil(max / 60 / 2) * 2;   // eixo em horas pares
+  return `<div class="g-dias" role="img" aria-label="Horas extras por dia no período">
+    <div class="g-eixo"><span>${topo}h</span><span>${topo / 2}h</span><span>0</span></div>
+    <div class="g-colunas">
+      ${dias.map(x => `<div class="g-col ${x.dom || x.fer ? 'fds' : ''}" title="${br(x.iso)} ${diaSemana(x.iso)}${x.fer ? ' (' + esc(feriados[x.iso]) + ')' : ''}: aprovadas ${fmtMin(x.ap, true)} · pendentes ${fmtMin(x.pe, true)}">
+        <div class="g-pilha">
+          <span class="g-pe" style="height:${x.pe / (topo * 60) * 100}%"></span>
+          <span class="g-ap" style="height:${x.ap / (topo * 60) * 100}%"></span>
+        </div>
+        <small>${x.iso.slice(8)}</small>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="g-legenda"><span><i class="lg-ap"></i>Aprovadas</span><span><i class="lg-pe"></i>Pendentes</span><span><i class="lg-fds"></i>Domingo/feriado</span></div>`;
+}
+
+async function pendenciasRapidas() {
+  let q = sb.from('horas_extras')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs)')
+    .eq('status', 'pendente').neq('colaborador_id', eu.id).order('atualizado_em').limit(5);
+  const { data } = await q;
+  return data || [];
+}
 
 function chaveAnterior(chave) {
   const [y, m] = chave.split('-').map(Number);
@@ -721,7 +759,7 @@ function chaveAnterior(chave) {
 
 async function buscarHEsPeriodo(p) {
   let q = sb.from('horas_extras')
-    .select('id, colaborador_id, data, turno, status, inicio, fim, almoco_corrido, min_35, min_80, min_80n, min_100, min_100n, atualizado_em, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs)')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs)')
     .gte('data', p.ini).lte('data', p.fim).neq('status', 'recusado');
   if (!ehAdmin()) q = q.neq('colaborador_id', eu.id);   // supervisor vê só a equipe
   return q;
@@ -731,7 +769,7 @@ function barras(itens, cor) {
   const max = Math.max(1, ...itens.map(i => i.valor));
   return itens.map(i => `<div class="barra-linha">
       <span class="barra-rot" title="${esc(i.rotulo)}">${esc(i.rotulo)}</span>
-      <span class="barra-trilho"><span class="barra" style="width:${Math.max(2, i.valor / max * 100)}%;background:${cor || 'var(--pri)'}"></span></span>
+      <span class="barra-trilho"><span class="barra" style="width:${i.valor ? Math.max(2, i.valor / max * 100) : 0}%;background:${cor || 'var(--pri)'}"></span></span>
       <span class="barra-val">${fmtMin(i.valor, true)}</span>
     </div>`).join('');
 }
@@ -740,7 +778,8 @@ async function carregarPainel() {
   const chave = $('#pn-periodo').value, p = periodoDe(chave), pAnt = periodoDe(chaveAnterior(chave));
   const box = $('#pn-conteudo');
   box.innerHTML = '<p class="vazio">Carregando...</p>';
-  const [{ data: hes, error }, { data: ant }] = await Promise.all([buscarHEsPeriodo(p), buscarHEsPeriodo(pAnt)]);
+  $('#pn-ola').textContent = `Olá, ${eu.nome.split(' ')[0]}!`;
+  const [{ data: hes, error }, { data: ant }, rapidas] = await Promise.all([buscarHEsPeriodo(p), buscarHEsPeriodo(pAnt), pendenciasRapidas()]);
   if (error) { box.innerHTML = `<p class="msg erro">${esc(erroAmigavel(error))}</p>`; return; }
 
   const soma = arr => arr.reduce((a, r) => a + somaColunas(r), 0);
@@ -788,6 +827,7 @@ async function carregarPainel() {
   const turnos = ['T1', 'T2', 'T3'].map(t => ({ rotulo: `${t} (${TURNOS[t].entrada})`, valor: soma(hes.filter(r => r.turno === t)) }));
 
   const vazio = !hes.length;
+  const porPct = COLUNAS.map(c => ({ rotulo: c.rotulo, valor: hes.reduce((a, r) => a + (r[c.campo] || 0), 0) }));
   box.innerHTML = `
     <div class="kpis">
       <div class="kpi destaque"><span>Total de HE no período</span><b>${fmtMin(total, true)}</b>${comp}</div>
@@ -815,14 +855,29 @@ async function carregarPainel() {
       <button class="btn ok peq" onclick="abrirPainel('p-aprovar')">Ir para Aprovar</button>
     </div>
 
-    <div class="graficos">
+    <div class="card bloco">
+      <h3>HE por dia <small>(passe o dedo ou o mouse nas colunas para ver as horas)</small></h3>
+      ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : graficoDias(p, hes)}
+    </div>
+
+    <div class="card bloco">
+      <div class="cab-bloco"><h3>Pendências rápidas <small>(as mais antigas primeiro)</small></h3>
+        <button class="btn link peq" onclick="abrirPainel('p-aprovar')">Ver todas</button></div>
+      ${rapidas.length ? rapidas.map(r => itemHTML(r, false, { semLote: true })).join('') : '<p class="vazio">Nada pendente. 👍</p>'}
+    </div>
+
+    <div class="graficos tres">
       <div class="card">
-        <h3>Quem mais fez HE <small>(top 5 no período)</small></h3>
+        <h3>Quem mais fez HE <small>(top 5)</small></h3>
         ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(top5)}
       </div>
       <div class="card">
         <h3>HE por turno</h3>
         ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(turnos, '#2f6fb0')}
+      </div>
+      <div class="card">
+        <h3>Por percentual</h3>
+        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(porPct, '#b7791f')}
       </div>
     </div>
     <p class="dica">Considera HE aprovadas e pendentes do período ${rotuloPeriodo(chave)} (recusadas ficam de fora)${ehAdmin() ? '' : ', só da sua equipe'}.</p>`;

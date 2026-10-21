@@ -974,19 +974,19 @@ async function carregarPainel() {
     <div class="graficos tres">
       <div class="card">
         <h3>Quem mais fez HE <small>(top 5)</small></h3>
-        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(top5)}
+        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(top5, 'var(--verde)')}
       </div>
       <div class="card">
         <h3>HE por turno</h3>
-        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(turnos, '#2f6fb0')}
+        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(turnos, 'var(--azul)')}
       </div>
       <div class="card">
         <h3>HE por cargo</h3>
-        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(porCargo, '#6b4fa3')}
+        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(porCargo, 'var(--roxo)')}
       </div>
       <div class="card">
         <h3>Por percentual</h3>
-        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(porPct, '#b7791f')}
+        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(porPct, 'var(--azul-escuro)')}
       </div>
     </div>
     <p class="dica">Considera HE aprovadas e pendentes do período ${rotuloPeriodo(chave)} (recusadas ficam de fora)${ehAdmin() ? '' : ', só da sua equipe'}.</p>`;

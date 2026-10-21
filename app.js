@@ -213,19 +213,19 @@ function mostrarPrevisto() {
 // ---------- Percentual simples (chips) ----------
 // Motivos mais comuns: toque preenche a justificativa (dá para editar depois)
 const MOTIVOS = ['Cobertura de falta', 'Descarga de vagões', 'Carregamento', 'Fila de caminhões', 'Fechamento', 'Treinamento', 'Emergência / manutenção'];
-let pctEscolhido = null;   // 35 | 80 | 100
+let pctEscolhido = null;   // coluna escolhida: 'min_35' | 'min_80' | 'min_80n' | 'min_100' | 'min_100n'
 let modoManual = false;
 
-function familia(pct) {
-  return { 35: ['min_35', null], 80: ['min_80', 'min_80n'], 100: ['min_100', 'min_100n'] }[pct];
-}
+// coluna diurna -> coluna noturna correspondente (para separar 22h–5h)
+const PAR_NOTURNO = { min_80: 'min_80n', min_100: 'min_100n' };
+function rotuloCol(campo) { return COLUNAS.find(c => c.campo === campo)?.rotulo || ''; }
 function calcularDistribuicao(pct, ini, fim, separar) {
   const out = Object.fromEntries(COLUNAS.map(c => [c.campo, 0]));
   const total = duracao(ini, fim);
   if (!pct || !total) return out;
-  const [base, noturna] = familia(pct);
+  const noturna = PAR_NOTURNO[pct];
   const noct = noturna && separar ? minutosNoturnos(ini, fim) : 0;
-  out[base] = total - noct;
+  out[pct] = total - noct;
   if (noturna) out[noturna] = noct;
   return out;
 }
@@ -235,12 +235,12 @@ function distribuir() {
   COLUNAS.forEach(c => $('#h-' + c.campo).value = fmtMin(d[c.campo]));
 }
 function marcarChips() {
-  $$('#h-chips .chip').forEach(c => c.classList.toggle('ativo', !modoManual && +c.dataset.pct === pctEscolhido));
+  $$('#h-chips .chip').forEach(c => c.classList.toggle('ativo', !modoManual && c.dataset.col === pctEscolhido));
   $('#h-manual').hidden = !modoManual;
   $('#h-manual-btn').textContent = modoManual ? 'Voltar para escolha simples' : 'Dividir em mais de um percentual';
 }
 $$('#h-chips .chip').forEach(c => c.onclick = () => {
-  pctEscolhido = +c.dataset.pct; modoManual = false;
+  pctEscolhido = c.dataset.col; modoManual = false;
   marcarChips(); conferir();
 });
 $('#h-manual-btn').onclick = () => {
@@ -269,12 +269,13 @@ function conferir() {
   $('#h-almoco-box').hidden = !(dentro > TOLERANCIA_TURNO || $('#h-almoco').checked);
 
   // separar noturna
-  $('#h-sep-box').hidden = modoManual || !noct || !pctEscolhido || pctEscolhido === 35;
+  $('#h-sep-box').hidden = modoManual || !noct || !PAR_NOTURNO[pctEscolhido];
+  if (!$('#h-sep-box').hidden) $('#h-sep-box span').innerHTML = `Separar a parte noturna (${fmtMin(noct, true)} entre 22h e 5h) em <b>${rotuloCol(PAR_NOTURNO[pctEscolhido])}</b>`;
 
   // sugestão domingo/feriado
   const dom = data && dataDe(data).getDay() === 0, fer = data && feriados[data];
   const sug = $('#h-sugestao');
-  sug.hidden = !(dom || fer) || pctEscolhido === 100 || modoManual;
+  sug.hidden = !(dom || fer) || ['min_100', 'min_100n'].includes(pctEscolhido) || modoManual;
   sug.textContent = (dom || fer) ? `📅 ${fer ? 'Feriado (' + fer + ')' : 'Domingo'}: normalmente é 100%.` : '';
 
   // conferência da soma (só no modo manual)
@@ -525,7 +526,7 @@ window.editar = id => {
   COLUNAS.forEach(c => $('#h-' + c.campo).value = fmtMin(r[c.campo]));
   // descobre se dá para mostrar na escolha simples
   pctEscolhido = null; modoManual = true;
-  for (const pct of [35, 80, 100]) for (const sep of [true, false]) {
+  for (const pct of COLUNAS.map(c => c.campo)) for (const sep of [true, false]) {
     const d = calcularDistribuicao(pct, r.inicio, r.fim, sep);
     if (COLUNAS.every(c => (d[c.campo] || 0) === (r[c.campo] || 0))) { pctEscolhido = pct; modoManual = false; $('#h-sep-noct').checked = sep; }
   }

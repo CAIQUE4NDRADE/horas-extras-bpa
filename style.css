@@ -385,3 +385,9 @@ h2.sub { margin-top: 28px; }
   .linha-data .chip { flex: 1; }
 }
 #m-totais .rm-cards { width: 100%; }
+.chips.grandes.cinco { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.chips.grandes.cinco .chip { font-size: 17px; padding: 8px 6px; line-height: 1.15; }
+@media (max-width: 700px) {
+  .chips.grandes.cinco { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chips.grandes.cinco .c35 { grid-column: 1 / -1; }
+}

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Folha de Horas Extras</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="comum.js"></script>
+<style>
+  @page { size: A4 landscape; margin: 7mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9ebe8; font: 9pt/1.2 Arial, Helvetica, sans-serif; color: #000; }
+  .barra { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: #6d2077; color: #fff; font: 14px system-ui, sans-serif; }
+  .barra button { background: #fff; color: #6d2077; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+  .barra label { display: flex; gap: 6px; align-items: center; }
+  .aviso { background: #fff2d6; color: #7a4f00; padding: 8px 16px; font: 13px system-ui, sans-serif; }
+  .folha { background: #fff; width: 283mm; margin: 12px auto; padding: 6mm; box-shadow: 0 1px 6px rgba(0,0,0,.15); }
+
+  .cab { display: grid; grid-template-columns: 34mm 1fr; border: 1.2px solid #000; align-items: center; }
+  .cab .logo { padding: 2mm 4mm; font-weight: 700; font-size: 15pt; letter-spacing: -.5px; }
+  .cab .tit { text-align: center; font-weight: 700; font-size: 8pt; padding: 1.2mm; line-height: 1.45; }
+  .cab .tit small { font-weight: 400; }
+
+  .info { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 6mm; margin: 2mm 0; align-items: start; }
+  .campos div { display: grid; grid-template-columns: 14mm 1fr; align-items: center; margin-bottom: 1.2mm; }
+  .campos b { text-align: right; padding-right: 2mm; }
+  .campos span { border: 1px solid #000; min-height: 5.4mm; padding: 1mm 2mm; display: flex; align-items: center; font-size: 10pt; }
+  .turnos { border: 1px solid #000; text-align: center; }
+  .turnos div:first-child { font-weight: 700; border-bottom: 1px solid #000; padding: 1.2mm; }
+  .turnos div { padding: .5mm; }
+  .empresa span { display: block; border: 1px solid #000; text-align: center; padding: 1.3mm; margin-bottom: 2.5mm; }
+
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1px solid #000; padding: 0 .8mm; height: 3.7mm; text-align: center; font-size: 7pt; line-height: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  th { font-weight: 700; background: #fff; white-space: normal; line-height: 1.1; height: 5mm; }
+  td.esq { text-align: left; }
+  tr.fds td { background: #f2f2f2; }
+  tr.tot td { font-weight: 700; height: 5mm; }
+  .pend { color: #9a6400; font-weight: 700; }
+  td.ass { font-size: 6.6pt; }
+  td:first-child { font-size: 7pt; }
+
+  .rodape { display: grid; grid-template-columns: 1fr 1.6fr; gap: 6mm; margin-top: 1.5mm; font-size: 6.4pt; line-height: 1.3; }
+  .rodape b { font-size: 7.2pt; }
+  .gerado { font-size: 6pt; color: #555; margin-top: 1mm; }
+
+  @media print {
+    body { background: #fff; }
+    .barra, .aviso { display: none !important; }
+    .folha { margin: 0; padding: 0; box-shadow: none; width: auto; }
+    tr.fds td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+  <div class="barra">
+    <button onclick="window.print()">🖨 Imprimir</button>
+    <label><input type="checkbox" id="incluir-pend"> Incluir pendentes</label>
+    <span id="status-carga">Carregando...</span>
+  </div>
+  <div class="aviso" id="aviso" hidden></div>
+
+  <div class="folha">
+    <div class="cab">
+      <div class="logo">raízen</div>
+      <div class="tit">Demonstrativo de Apontamento Diário<br>Espelho de Ponto por Exceção<br><small id="f-periodo"></small></div>
+    </div>
+
+    <div class="info">
+      <div class="campos">
+        <div><b>Nome:</b><span id="f-nome"></span></div>
+        <div><b>CS:</b><span id="f-cs"></span></div>
+        <div><b>Cargo:</b><span id="f-cargo"></span></div>
+      </div>
+      <div class="turnos">
+        <div>Horário dos Turnos</div>
+        <div>T1: 07:15 às 15:45</div>
+        <div>T2: 15:30 às 00:00</div>
+        <div>T3: 23:50 às 07:38</div>
+      </div>
+      <div class="empresa">
+        <span>Raízen Combustíveis</span>
+        <span>J036 - JV Base de Paulínia</span>
+      </div>
+    </div>
+
+    <table>
+      <colgroup>
+        <col style="width:16.5mm"><col style="width:8mm"><col style="width:11mm">
+        <col style="width:22mm"><col style="width:22mm">
+        <col style="width:11mm"><col style="width:11mm">
+        <col style="width:11mm"><col style="width:11mm"><col style="width:13mm"><col style="width:11mm"><col style="width:13mm">
+        <col><col style="width:34mm">
+      </colgroup>
+      <thead>
+        <tr>
+          <th rowspan="2" colspan="2">Data</th>
+          <th rowspan="2">Turno</th>
+          <th colspan="2">Horário Previsto</th>
+          <th colspan="7">Horas Extras</th>
+          <th rowspan="2">Justificativa</th>
+          <th rowspan="2">Ass. Gestor</th>
+        </tr>
+        <tr>
+          <th>Entrada / Saída</th><th>Intervalo Refeição</th>
+          <th>Início</th><th>Fim</th>
+          <th>35%</th><th>80%</th><th>80% noturna</th><th>100%</th><th>100% noturna</th>
+        </tr>
+      </thead>
+      <tbody id="linhas"></tbody>
+    </table>
+
+    <div class="rodape">
+      <div>
+        <b>Observações:</b><br>
+        * Anotar exclusivamente quando for feita jornada diferente da prevista.<br>
+        * Horas extras devem ser somadas a quantidade total diária e preenchidas de acordo com coluna correta.<br>
+        * O Horário de refeição de 01:00 de descanso deve ser realizado durante a jornada.
+        <div class="gerado" id="gerado"></div>
+      </div>
+      <div>
+        <b>Exemplo de preenchimento HE:</b><br>
+        Simulando T1: Funcionário(a) entrou as 07:15 e ficou até as 17:00 no campo início vai preencher 15:45 no campo fim 17:00. No campo 80% vai preencher 01:15, justificar e coletar assinatura.<br>
+        Simulando T2: Funcionário(a) entrou as 14:30 e saiu as 01:30, no campo início vai preencher 14:30, no campo fim 01:30. No campo 80% preenche 01:00, no campo 35% 02:00 e no campo 80% noturna 01:30<br>
+        Simulando T3: Funcionário(a) entrou as 23:50 e saiu as 09:50, no campo início vai preencher 07:38, no campo fim 09:50. No campo 35% preenche 07:48, no campo 80% noturna 02:12
+      </div>
+    </div>
+  </div>
+
+<script src="folha.js"></script>
+</body>
+</html>

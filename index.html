@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horas Extras · BPA</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="comum.js"></script>
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">Horas Extras <span>J036 · Base de Paulínia</span></div>
+  <div id="usuario" hidden>
+    <span id="u-nome"></span>
+    <button id="btn-sair" class="btn-link">Sair</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ========== LOGIN ========== -->
+  <section id="v-login" class="view card estreito" hidden>
+    <div class="abas-login">
+      <button class="aba-l ativa" data-alvo="f-login">Entrar</button>
+      <button class="aba-l" data-alvo="f-cadastro">Primeiro acesso</button>
+    </div>
+
+    <form id="f-login">
+      <label>CS<input id="l-cs" autocomplete="username" placeholder="ex.: cs338104" required></label>
+      <label>Senha<input id="l-senha" type="password" autocomplete="current-password" required></label>
+      <button class="btn">Entrar</button>
+      <p class="msg" hidden></p>
+    </form>
+
+    <form id="f-cadastro" hidden>
+      <label>CS<input id="c-cs" autocomplete="username" placeholder="ex.: cs338104" required></label>
+      <label>Senha (mín. 6 caracteres)<input id="c-senha" type="password" autocomplete="new-password" minlength="6" required></label>
+      <label>Confirme a senha<input id="c-senha2" type="password" autocomplete="new-password" minlength="6" required></label>
+      <button class="btn">Criar conta</button>
+      <p class="msg" hidden></p>
+    </form>
+  </section>
+
+  <!-- ========== COMPLETAR CADASTRO ========== -->
+  <section id="v-perfil" class="view card estreito" hidden>
+    <h2>Complete seu cadastro</h2>
+    <form id="f-perfil">
+      <label>Nome completo<input id="p-nome" required></label>
+      <label>Cargo<input id="p-cargo" placeholder="ex.: Operador de Terminal" required></label>
+      <label>Turno
+        <select id="p-turno" required>
+          <option value="T1">T1 · 07:15 às 15:45</option>
+          <option value="T2">T2 · 15:30 às 00:00</option>
+          <option value="T3">T3 · 23:50 às 07:38</option>
+        </select>
+      </label>
+      <label>Supervisor direto
+        <select id="p-supervisor"></select>
+      </label>
+      <button class="btn">Salvar</button>
+      <p class="msg" hidden></p>
+    </form>
+  </section>
+
+  <!-- ========== APLICAÇÃO ========== -->
+  <section id="v-app" class="view" hidden>
+    <nav class="abas">
+      <button class="aba ativa" data-painel="p-lancar">Lançar</button>
+      <button class="aba" data-painel="p-minhas">Minhas HEs</button>
+      <button class="aba so-sup" data-painel="p-aprovar">Aprovar <b id="badge-pend" class="badge" hidden></b></button>
+      <button class="aba so-sup" data-painel="p-resumo">Resumo</button>
+      <button class="aba so-admin" data-painel="p-equipe">Equipe</button>
+    </nav>
+
+    <!-- LANÇAR -->
+    <div id="p-lancar" class="painel card">
+      <h2 id="t-lancar">Lançar hora extra</h2>
+      <form id="f-he">
+        <div class="grade g3">
+          <label>Data da jornada<input id="h-data" type="date" required></label>
+          <label>Turno
+            <select id="h-turno">
+              <option value="T1">T1</option><option value="T2">T2</option><option value="T3">T3</option>
+            </select>
+          </label>
+          <div class="previsto" id="h-previsto"></div>
+        </div>
+
+        <div class="grade g2">
+          <label>Início da HE<input id="h-inicio" type="time" required></label>
+          <label>Fim da HE<input id="h-fim" type="time" required></label>
+        </div>
+
+        <fieldset>
+          <legend>Distribuição por percentual <small>(hh:mm)</small></legend>
+          <div class="grade g5" id="h-colunas"></div>
+          <div id="h-conferencia" class="conferencia"></div>
+        </fieldset>
+
+        <details id="h-jornada">
+          <summary>Jornada diferente da prevista? <small>(opcional)</small></summary>
+          <div class="grade g4">
+            <label>Entrada<input id="h-jent" type="time"></label>
+            <label>Saída<input id="h-jsai" type="time"></label>
+            <label>Refeição início<input id="h-rini" type="time"></label>
+            <label>Refeição fim<input id="h-rfim" type="time"></label>
+          </div>
+        </details>
+
+        <label>Justificativa<textarea id="h-just" rows="2" required placeholder="ex.: cobertura de falta no T2, descarga de vagões..."></textarea></label>
+
+        <div class="acoes">
+          <button class="btn">Salvar lançamento</button>
+          <button type="button" id="h-cancelar" class="btn sec" hidden>Cancelar edição</button>
+        </div>
+        <p class="msg" hidden></p>
+      </form>
+    </div>
+
+    <!-- MINHAS -->
+    <div id="p-minhas" class="painel card" hidden>
+      <div class="cab-painel">
+        <h2>Minhas horas extras</h2>
+        <div class="filtros">
+          <select id="m-periodo"></select>
+          <button id="m-imprimir" class="btn sec">Imprimir folha</button>
+        </div>
+      </div>
+      <div id="m-totais" class="totais"></div>
+      <div id="m-lista"></div>
+    </div>
+
+    <!-- APROVAR -->
+    <div id="p-aprovar" class="painel card" hidden>
+      <div class="cab-painel">
+        <h2>Pendentes de aprovação</h2>
+        <button id="a-atualizar" class="btn sec">Atualizar</button>
+      </div>
+      <div id="a-lista"></div>
+    </div>
+
+    <!-- RESUMO -->
+    <div id="p-resumo" class="painel card" hidden>
+      <div class="cab-painel">
+        <h2>Resumo do período <small>(só aprovadas)</small></h2>
+        <div class="filtros">
+          <select id="r-periodo"></select>
+          <button id="r-csv" class="btn sec">Baixar CSV</button>
+        </div>
+      </div>
+      <div id="r-tabela" class="rolagem"></div>
+    </div>
+
+    <!-- EQUIPE (admin) -->
+    <div id="p-equipe" class="painel card" hidden>
+      <h2>Colaboradores</h2>
+      <p class="dica">Defina quem é supervisor e quem responde a quem. Só o supervisor direto (ou admin) aprova.</p>
+      <div id="e-lista" class="rolagem"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -183,6 +183,7 @@ function mascaraHora(inp) {
 }
 
 ['#h-inicio', '#h-fim', '#h-data'].forEach(s => $(s).addEventListener('input', conferir));
+$('#h-almoco').addEventListener('change', conferir);
 $('#h-data').addEventListener('change', conferir);
 $('#h-turno').addEventListener('change', () => { mostrarPrevisto(); conferir(); });
 
@@ -219,9 +220,13 @@ function mostrarAvisos() {
   const noct = minutosNoturnos(ini, fim);
   if (noct) av.push(['info', `🌙 Desse horário, <b>${fmtMin(noct, true)}</b> caiu entre 22h e 5h (período noturno).`]);
   const dentro = minutosDentroDoTurno(ini, fim, $('#h-turno').value);
-  if (dentro > TOLERANCIA_TURNO) {
+  const almoco = $('#h-almoco').checked;
+  if (almoco) {
+    av.push(['info', '🍽 Almoço corrido: a HE pode ficar dentro do horário do turno.']);
+    if (total > 70) av.push(['alerta', `⚠ Almoço corrido normalmente é 1h, e aqui deu ${fmtMin(total, true)}. Confira os horários.`]);
+  } else if (dentro > TOLERANCIA_TURNO) {
     const t = TURNOS[$('#h-turno').value];
-    av.push(['alerta', `⚠ ${fmtMin(dentro, true)} dessa HE cai dentro do horário do ${$('#h-turno').value} (${t.entrada} às ${t.saida}). Confira o turno e os horários. Se a jornada foi diferente, informe em "Jornada diferente da prevista".`]);
+    av.push(['alerta', `⚠ ${fmtMin(dentro, true)} dessa HE cai dentro do horário do ${$('#h-turno').value} (${t.entrada} às ${t.saida}). Confira o turno e os horários. Se foi almoço corrido, marque a opção "Almoço corrido". Se a jornada foi diferente, informe em "Jornada diferente da prevista".`]);
   }
   if (total > 120) av.push(['alerta', `⚠ Acima de 2h de hora extra no dia (${fmtMin(total, true)}). O limite legal é 2h, salvo exceções. Explique bem na justificativa.`]);
   $('#h-avisos').innerHTML = av.map(([t, txt]) => `<div class="aviso-l ${t}">${txt}</div>`).join('');
@@ -251,7 +256,8 @@ $('#f-he').onsubmit = async e => {
     jornada_saida: $('#h-jsai').value || null,
     refeicao_inicio: $('#h-rini').value || null,
     refeicao_fim: $('#h-rfim').value || null,
-    justificativa: $('#h-just').value.trim()
+    justificativa: $('#h-just').value.trim(),
+    almoco_corrido: $('#h-almoco').checked
   };
   for (const c of COLUNAS) {
     const v = toMin($('#h-' + c.campo).value);
@@ -299,7 +305,7 @@ async function carregarResumoMes() {
 const ROTULOS_CAMPO = {
   data: 'Data', turno: 'Turno', inicio: 'Início', fim: 'Fim', justificativa: 'Justificativa',
   jornada_entrada: 'Entrada', jornada_saida: 'Saída', refeicao_inicio: 'Refeição início', refeicao_fim: 'Refeição fim',
-  min_35: '35%', min_80: '80%', min_80n: '80% noturna', min_100: '100%', min_100n: '100% noturna', motivo_recusa: 'Motivo recusa'
+  min_35: '35%', min_80: '80%', min_80n: '80% noturna', min_100: '100%', min_100n: '100% noturna', motivo_recusa: 'Motivo recusa', almoco_corrido: 'Almoço corrido'
 };
 function valorCampo(campo, v) {
   if (v === null || v === undefined || v === '') return '—';
@@ -370,7 +376,7 @@ function detalheColunas(r) {
 function itemHTML(r, meu) {
   const total = duracao(r.inicio, r.fim), soma = somaColunas(r);
   const diverge = total !== soma, acima2h = Math.max(total, soma) > 120;
-  const noTurno = minutosDentroDoTurno(r.inicio, r.fim, r.turno) > TOLERANCIA_TURNO;
+  const noTurno = !r.almoco_corrido && minutosDentroDoTurno(r.inicio, r.fim, r.turno) > TOLERANCIA_TURNO;
   const travado = periodoFechado(r.data) && !ehAdmin();
   const nome = meu ? '' : `<b>${esc(r.colaborador?.nome)}</b> (${esc((r.colaborador?.cs || '').toUpperCase())}) · `;
   const rotStatus = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado' }[r.status];
@@ -396,7 +402,7 @@ function itemHTML(r, meu) {
   return `<div class="item">
     <div class="lin1">${nome}${br(r.data)} ${diaSemana(r.data)} · ${r.turno} · ${hhmm(r.inicio)} às ${hhmm(r.fim)}</div>
     <span class="st ${r.status}">${rotStatus}</span>
-    <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${noTurno ? ` · <span class="alerta">⚠ dentro do horário do ${r.turno}</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
+    <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${noTurno ? ` · <span class="alerta">⚠ dentro do horário do ${r.turno}</span>` : ''}${r.almoco_corrido ? ` · <span class="info-t">🍽 Almoço corrido</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
     <div class="det">${esc(r.justificativa)}</div>
     ${extra}${botoes}
   </div>`;
@@ -419,6 +425,7 @@ window.editar = id => {
   $('#h-rfim').value = hhmm(r.refeicao_fim);
   $('#h-jornada').open = !!(r.jornada_entrada || r.jornada_saida || r.refeicao_inicio);
   $('#h-just').value = r.justificativa;
+  $('#h-almoco').checked = !!r.almoco_corrido;
   COLUNAS.forEach(c => $('#h-' + c.campo).value = fmtMin(r[c.campo]));
   mostrarPrevisto(); conferir(); msg($('#f-he'), '');
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -584,10 +591,10 @@ $('#r-csv-det').onclick = async () => {
   if (!data.length) return alert('Nenhum lançamento neste período.');
   data.sort((a, b) => (a.colaborador?.nome || '').localeCompare(b.colaborador?.nome || '') || a.data.localeCompare(b.data));
   const cab = ['Nome', 'CS', 'Cargo', 'Data', 'Dia', 'Turno', 'Início', 'Fim', 'Total pelo horário',
-    ...COLUNAS.map(c => c.rotulo), 'Soma colunas', 'Justificativa', 'Status', 'Aprovado/recusado por', 'Em', 'Motivo recusa'];
+    ...COLUNAS.map(c => c.rotulo), 'Soma colunas', 'Almoço corrido', 'Justificativa', 'Status', 'Aprovado/recusado por', 'Em', 'Motivo recusa'];
   const linhas = data.map(r => [r.colaborador?.nome, (r.colaborador?.cs || '').toUpperCase(), r.colaborador?.cargo,
     br(r.data), diaSemana(r.data), r.turno, hhmm(r.inicio), hhmm(r.fim), fmtMin(duracao(r.inicio, r.fim), true),
-    ...COLUNAS.map(c => fmtMin(r[c.campo], true)), fmtMin(somaColunas(r), true), r.justificativa, r.status,
+    ...COLUNAS.map(c => fmtMin(r[c.campo], true)), fmtMin(somaColunas(r), true), r.almoco_corrido ? 'Sim' : '', r.justificativa, r.status,
     r.aprovador?.nome || '', r.aprovado_em ? new Date(r.aprovado_em).toLocaleString('pt-BR') : '', r.motivo_recusa || '']);
   baixarCSV(`horas-extras-detalhado_${p.chave}.csv`, [cab, ...linhas]);
 };

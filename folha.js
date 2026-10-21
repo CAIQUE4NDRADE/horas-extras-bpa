@@ -121,7 +121,7 @@ function preencher(el, { colab, registros }, incluirPend) {
       <td>${jornada}</td><td>${refeicao}</td>
       <td>${r ? hhmm(r.inicio) : ':'}</td><td>${r ? hhmm(r.fim) : ':'}</td>
       ${COLUNAS.map(c => `<td>${r ? fmtMin(r[c.campo]) : ''}</td>`).join('')}
-      <td class="esq" title="${r ? esc(r.justificativa) : ''}">${r ? esc(r.justificativa) : ''}</td>
+      <td class="esq" title="${r ? esc(textoJust(r)) : ''}">${r ? esc(textoJust(r)) : ''}</td>
       <td class="ass">${ass}</td>
     </tr>`;
   }
@@ -132,6 +132,8 @@ function preencher(el, { colab, registros }, incluirPend) {
   </tr>`;
   campo('linhas').innerHTML = html;
 }
+
+function textoJust(r) { return (r.almoco_corrido ? 'Almoço corrido – ' : '') + (r.justificativa || ''); }
 
 function primeiroUltimo(nome) {
   const p = nome.trim().split(/\s+/);

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · BPA</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#00843d">
 <link rel="icon" href="icone-192.png">
@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=5"></script>
-<script src="comum.js?v=5"></script>
+<script src="config.js?v=6"></script>
+<script src="comum.js?v=6"></script>
 </head>
 <body>
 
@@ -112,6 +112,7 @@
           <label>Início da HE<input id="h-inicio" type="time" required></label>
           <label>Fim da HE<input id="h-fim" type="time" required></label>
         </div>
+        <label class="chk-linha"><input id="h-almoco" type="checkbox"> <span><b>Almoço corrido</b>: a HE foi o horário de refeição trabalhado (dentro do turno)</span></label>
 
         <fieldset>
           <legend>Distribuição por percentual <small>(hh:mm)</small></legend>
@@ -213,6 +214,6 @@
 
 </main>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

@@ -486,12 +486,13 @@ function itemHTML(r, meu, opc = {}) {
   if (r.status === 'recusado') extra = `<div class="det" style="color:var(--erro)">Recusado: ${esc(r.motivo_recusa)}. Corrija e salve de novo.</div>`;
 
   const btnHist = `<button class="btn link peq" onclick="verHistorico(${r.id}, this)">Histórico</button>`;
-  let botoes = `<div class="botoes">${btnHist}</div>`;
+  // admin pode excluir qualquer lançamento (inclusive o próprio já aprovado), com motivo
+  const btnExcAdm = ehAdmin() ? `<button class="btn link peq perigo-link" onclick="excluirAdmin(${r.id}, this)">Excluir</button>` : '';
+  let botoes = `<div class="botoes">${btnHist}${btnExcAdm}</div>`;
   if (meu && travado) botoes = `<div class="botoes"><span class="trava">🔒 Período fechado</span>${btnHist}</div>`;
   else if (meu && r.status !== 'aprovado') botoes = `<div class="botoes">
       <button class="btn ${r.status === 'recusado' ? 'ok' : 'sec'} peq" onclick="editar(${r.id})">${r.status === 'recusado' ? 'Corrigir' : 'Editar'}</button>
       <button class="btn perigo peq" onclick="excluir(${r.id}, this)">Excluir</button>${btnHist}</div>`;
-  const btnExcAdm = ehAdmin() && !meu ? `<button class="btn link peq perigo-link" onclick="excluirAdmin(${r.id}, this)">Excluir</button>` : '';
   if (!meu && (opc.adminLista && r.status !== 'pendente')) botoes = `<div class="botoes">${btnHist}${btnExcAdm}</div>`;
   else if (!meu) botoes = `<div class="botoes">
       ${opc.semLote ? '' : `<label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h || noTurno ? 0 : 1}"> Selecionar</label>`}
@@ -1023,7 +1024,9 @@ window.excluirAdmin = async (id, btn) => {
   carregandoBotao(btn, false);
   if (error) return alert(erroAmigavel(error));
   // recarrega a tela em que o admin está
-  if (!$('#p-painel').hidden) carregarPainel();
+  carregarResumoMes();
+  if (!$('#p-minhas').hidden) carregarMinhas();
+  else if (!$('#p-painel').hidden) carregarPainel();
   else if (!$('#p-aprovar').hidden) carregarPendentes();
   else if (!$('#p-resumo').hidden) { await carregarResumo(); if (detalheColab) { const b = document.createElement('button'); verLancamentos(detalheColab, b); } }
   if (ehSup()) contarPendentes();

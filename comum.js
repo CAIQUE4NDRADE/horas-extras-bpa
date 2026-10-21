@@ -95,3 +95,16 @@ function erroAmigavel(error) {
   if (/Password should be/i.test(t)) return 'A senha precisa ter pelo menos 6 caracteres.';
   return t;
 }
+
+// Minutos do intervalo início→fim que caem entre 22:00 e 05:00
+function minutosNoturnos(ini, fim) {
+  const total = duracao(ini, fim);
+  if (!total) return 0;
+  const a = toMin(hhmm(ini));
+  let n = 0;
+  for (let i = 0; i < total; i++) {
+    const m = (a + i) % 1440;
+    if (m >= 1320 || m < 300) n++;
+  }
+  return n;
+}

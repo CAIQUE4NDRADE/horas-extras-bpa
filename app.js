@@ -2,6 +2,19 @@
 let eu = null;           // perfil do usuário logado (linha de colaboradores)
 let editandoId = null;   // id do lançamento em edição
 let cacheMinhas = [];
+let fechados = new Set();  // chaves 'AAAA-MM' de períodos fechados
+let feriados = {};         // { 'AAAA-MM-DD': 'descrição' }
+
+const periodoFechado = iso => fechados.has(periodoDaData(iso));
+
+async function carregarAuxiliares() {
+  const [{ data: pf }, { data: fer }] = await Promise.all([
+    sb.from('periodos_fechados').select('chave'),
+    sb.from('feriados').select('data, descricao')
+  ]);
+  fechados = new Set((pf || []).map(p => p.chave));
+  feriados = Object.fromEntries((fer || []).map(f => [f.data, f.descricao]));
+}
 
 function mostrar(view) { $$('.view').forEach(v => v.hidden = v.id !== view); }
 function msg(form, texto, tipo = 'erro') {
@@ -135,6 +148,7 @@ function montarApp() {
   mostrar('v-app');
   abrirPainel('p-lancar');
   if (ehSup()) contarPendentes();
+  carregarAuxiliares().then(conferir);
 }
 
 $$('.aba').forEach(b => b.onclick = () => abrirPainel(b.dataset.painel));
@@ -144,7 +158,8 @@ function abrirPainel(id) {
   if (id === 'p-minhas') carregarMinhas();
   if (id === 'p-aprovar') carregarPendentes();
   if (id === 'p-resumo') carregarResumo();
-  if (id === 'p-equipe') carregarEquipe();
+  if (id === 'p-equipe') { carregarEquipe(); carregarFeriadosAdmin(); }
+  if (id === 'p-senha') { $('#f-senha').reset(); msg($('#f-senha'), ''); }
 }
 
 // ===================== LANÇAR =====================
@@ -161,7 +176,8 @@ function mascaraHora(inp) {
   inp.value = d.length > 2 ? d.slice(0, d.length - 2) + ':' + d.slice(-2) : d;
 }
 
-['#h-inicio', '#h-fim'].forEach(s => $(s).addEventListener('input', conferir));
+['#h-inicio', '#h-fim', '#h-data'].forEach(s => $(s).addEventListener('input', conferir));
+$('#h-data').addEventListener('change', conferir);
 $('#h-turno').addEventListener('change', mostrarPrevisto);
 
 function mostrarPrevisto() {
@@ -171,6 +187,7 @@ function mostrarPrevisto() {
 
 function conferir() {
   const total = duracao($('#h-inicio').value, $('#h-fim').value);
+  mostrarAvisos();
   const valores = COLUNAS.map(c => toMin($('#h-' + c.campo).value));
   const box = $('#h-conferencia');
   if (valores.some(isNaN)) { box.className = 'conferencia nao-bate'; box.textContent = 'Use o formato hh:mm nas colunas (ex.: 01:15).'; return; }
@@ -180,6 +197,23 @@ function conferir() {
   box.className = 'conferencia ' + (bate ? 'bate' : 'nao-bate');
   box.textContent = `Pelo horário: ${fmtMin(total, true)}  ·  Soma das colunas: ${fmtMin(soma, true)}` +
     (bate ? '  ✓' : '  — não bate, confira antes de salvar');
+}
+
+// Avisos que ajudam o operador a escolher a coluna (não bloqueiam, exceto período fechado)
+function mostrarAvisos() {
+  const data = $('#h-data').value, ini = $('#h-inicio').value, fim = $('#h-fim').value;
+  const total = duracao(ini, fim), av = [];
+  if (data && periodoFechado(data)) {
+    av.push(['erro', `🔒 O período ${rotuloPeriodo(periodoDaData(data))} está fechado. ${ehAdmin() ? 'Como admin, você ainda pode lançar.' : 'Não é possível lançar nesta data.'}`]);
+  }
+  if (data) {
+    const dom = dataDe(data).getDay() === 0, fer = feriados[data];
+    if (fer || dom) av.push(['info', `📅 ${fer ? 'Feriado: ' + esc(fer) : 'Domingo'}. Normalmente vai na coluna 100%${minutosNoturnos(ini, fim) ? ' (e a parte noturna em 100% noturna)' : ''}.`]);
+  }
+  const noct = minutosNoturnos(ini, fim);
+  if (noct) av.push(['info', `🌙 Desse horário, <b>${fmtMin(noct, true)}</b> caiu entre 22h e 5h (período noturno).`]);
+  if (total > 120) av.push(['alerta', `⚠ Acima de 2h de hora extra no dia (${fmtMin(total, true)}). O limite legal é 2h, salvo exceções. Explique bem na justificativa.`]);
+  $('#h-avisos').innerHTML = av.map(([t, txt]) => `<div class="aviso-l ${t}">${txt}</div>`).join('');
 }
 
 function limparForm() {
@@ -215,6 +249,7 @@ $('#f-he').onsubmit = async e => {
   }
   if (!somaColunas(reg)) return msg(f, 'Preencha as horas em pelo menos uma coluna de percentual.');
   if (!reg.justificativa) return msg(f, 'A justificativa é obrigatória.');
+  if (periodoFechado(reg.data) && !ehAdmin()) return msg(f, 'Esse período já está fechado. Fale com o administrador.');
 
   ocupado(f, true);
   const { error } = editandoId
@@ -322,6 +357,8 @@ function detalheColunas(r) {
 
 function itemHTML(r, meu) {
   const total = duracao(r.inicio, r.fim), soma = somaColunas(r);
+  const diverge = total !== soma, acima2h = Math.max(total, soma) > 120;
+  const travado = periodoFechado(r.data) && !ehAdmin();
   const nome = meu ? '' : `<b>${esc(r.colaborador?.nome)}</b> (${esc((r.colaborador?.cs || '').toUpperCase())}) · `;
   const rotStatus = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado' }[r.status];
   let extra = '';
@@ -330,10 +367,12 @@ function itemHTML(r, meu) {
 
   const btnHist = `<button class="btn link peq" onclick="verHistorico(${r.id}, this)">Histórico</button>`;
   let botoes = `<div class="botoes">${btnHist}</div>`;
-  if (meu && r.status !== 'aprovado') botoes = `<div class="botoes">
+  if (meu && travado) botoes = `<div class="botoes"><span class="trava">🔒 Período fechado</span>${btnHist}</div>`;
+  else if (meu && r.status !== 'aprovado') botoes = `<div class="botoes">
       <button class="btn sec peq" onclick="editar(${r.id})">Editar</button>
       <button class="btn perigo peq" onclick="excluir(${r.id}, this)">Excluir</button>${btnHist}</div>`;
   if (!meu) botoes = `<div class="botoes">
+      <label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h ? 0 : 1}"> Selecionar</label>
       <button class="btn ok peq" onclick="decidir(${r.id}, true, this)">Aprovar</button>
       <button class="btn perigo peq" onclick="mostrarRecusa(${r.id})">Recusar</button>${btnHist}</div>
     <div class="recusa" id="rec-${r.id}" hidden>
@@ -344,7 +383,7 @@ function itemHTML(r, meu) {
   return `<div class="item">
     <div class="lin1">${nome}${br(r.data)} ${diaSemana(r.data)} · ${r.turno} · ${hhmm(r.inicio)} às ${hhmm(r.fim)}</div>
     <span class="st ${r.status}">${rotStatus}</span>
-    <div class="det">${detalheColunas(r)}${total !== soma ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}</div>
+    <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
     <div class="det">${esc(r.justificativa)}</div>
     ${extra}${botoes}
   </div>`;
@@ -400,8 +439,34 @@ async function carregarPendentes() {
   if (error) { $('#a-lista').innerHTML = `<p class="msg erro">${esc(error.message)}</p>`; return; }
   $('#a-lista').innerHTML = data.length ? data.map(r => itemHTML(r, false)).join('')
     : '<p class="vazio">Nada pendente. 👍</p>';
+  $('#a-marcar').hidden = !data.length;
+  atualizarLote();
   contarPendentes();
 }
+
+function atualizarLote() {
+  const n = $$('.chk-lote:checked').length;
+  $('#a-lote').disabled = !n;
+  $('#a-lote').textContent = n ? `Aprovar selecionados (${n})` : 'Aprovar selecionados';
+}
+$('#a-lista').addEventListener('change', e => { if (e.target.classList.contains('chk-lote')) atualizarLote(); });
+$('#a-marcar').onclick = () => {
+  $$('.chk-lote').forEach(c => c.checked = c.dataset.limpo === '1');
+  atualizarLote();
+};
+$('#a-lote').onclick = async () => {
+  const ids = $$('.chk-lote:checked').map(c => +c.value);
+  if (!ids.length || !confirm(`Aprovar ${ids.length} lançamento(s)?`)) return;
+  const btn = $('#a-lote');
+  let ok = 0; const falhas = [];
+  for (const [i, id] of ids.entries()) {
+    btn.textContent = `Aprovando ${i + 1}/${ids.length}...`; btn.disabled = true;
+    const { error } = await sb.rpc('decidir_he', { p_id: id, p_aprovar: true, p_motivo: null });
+    if (error) falhas.push(erroAmigavel(error)); else ok++;
+  }
+  alert(`${ok} aprovado(s).` + (falhas.length ? `\n${falhas.length} com erro:\n- ${[...new Set(falhas)].join('\n- ')}` : ''));
+  carregarPendentes();
+};
 
 window.mostrarRecusa = id => { const el = $('#rec-' + id); el.hidden = !el.hidden; if (!el.hidden) $('#rec-txt-' + id).focus(); };
 
@@ -419,9 +484,42 @@ window.decidir = async (id, aprovar, btn) => {
 let cacheResumo = [];
 $('#r-periodo').onchange = carregarResumo;
 
+function mostrarStatusPeriodo(chave) {
+  const fechado = fechados.has(chave);
+  const st = $('#r-status');
+  st.hidden = false;
+  st.className = 'status-periodo ' + (fechado ? 'fechado' : 'aberto');
+  st.textContent = fechado
+    ? '🔒 Período fechado: ninguém consegue lançar, editar ou aprovar HE neste período (só o admin).'
+    : '🔓 Período aberto para lançamentos e aprovações.';
+  $('#r-fechar').textContent = fechado ? 'Reabrir período' : 'Fechar período';
+  $('#r-fechar').className = 'btn so-admin ' + (fechado ? 'sec' : '');
+  $('#r-fechar').hidden = !ehAdmin();
+}
+
+$('#r-todas').onclick = () => window.open(`folha.html?todos=1&p=${$('#r-periodo').value}`, '_blank');
+
+$('#r-fechar').onclick = async () => {
+  const chave = $('#r-periodo').value, fechado = fechados.has(chave);
+  const pend = cacheResumo.reduce((a, l) => a + l.pendentes, 0);
+  const aviso = fechado ? `Reabrir o período ${rotuloPeriodo(chave)}?`
+    : `Fechar o período ${rotuloPeriodo(chave)}?` + (pend ? `\n\nAtenção: ainda há ${pend} lançamento(s) pendente(s) que ficarão travados.` : '');
+  if (!confirm(aviso)) return;
+  const btn = $('#r-fechar');
+  carregandoBotao(btn, true);
+  const { error } = fechado
+    ? await sb.from('periodos_fechados').delete().eq('chave', chave)
+    : await sb.from('periodos_fechados').insert({ chave, fechado_por: eu.id });
+  carregandoBotao(btn, false);
+  if (error) return alert(erroAmigavel(error));
+  await carregarAuxiliares();
+  mostrarStatusPeriodo(chave);
+};
+
 async function carregarResumo() {
   const p = periodoDe($('#r-periodo').value);
   $('#r-tabela').innerHTML = '<p class="vazio">Carregando...</p>';
+  mostrarStatusPeriodo(p.chave);
 
   let q = sb.from('colaboradores').select('id, nome, cs, cargo').eq('ativo', true).order('nome');
   if (!ehAdmin()) q = q.eq('supervisor_id', eu.id);
@@ -491,16 +589,63 @@ async function carregarEquipe() {
 
 window.salvarColab = async btn => {
   const tr = btn.closest('tr');
-  btn.disabled = true;
+  carregandoBotao(btn, true, 'Salvando...');
   const { error } = await sb.from('colaboradores').update({
     papel: tr.querySelector('.e-papel').value,
     supervisor_id: tr.querySelector('.e-sup').value || null,
     ativo: tr.querySelector('.e-ativo').checked
   }).eq('id', tr.dataset.id);
-  btn.disabled = false;
+  carregandoBotao(btn, false);
   if (error) return alert(erroAmigavel(error));
   btn.textContent = 'Salvo ✓';
   setTimeout(() => { btn.textContent = 'Salvar'; carregarEquipe(); }, 900);
+};
+
+// ===================== FERIADOS (admin) =====================
+async function carregarFeriadosAdmin() {
+  const box = $('#fer-lista');
+  const { data, error } = await sb.from('feriados').select('*').gte('data', isoDe(new Date(new Date().getFullYear(), 0, 1))).order('data');
+  if (error) { box.innerHTML = `<p class="msg erro">${esc(erroAmigavel(error))}</p>`; return; }
+  box.innerHTML = data.length ? `<table class="tab"><thead><tr><th>Data</th><th>Dia</th><th>Descrição</th><th></th></tr></thead>
+    <tbody>${data.map(f => `<tr><td>${br(f.data)}</td><td>${diaSemana(f.data)}</td><td>${esc(f.descricao)}</td>
+      <td><button class="btn perigo peq" onclick="removerFeriado('${f.data}', this)">Remover</button></td></tr>`).join('')}</tbody></table>`
+    : '<p class="vazio">Nenhum feriado cadastrado.</p>';
+}
+
+$('#f-feriado').onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target; ocupado(f, true);
+  const { error } = await sb.from('feriados').insert({ data: $('#fer-data').value, descricao: $('#fer-desc').value.trim() });
+  ocupado(f, false);
+  if (error) return alert(error.code === '23505' ? 'Já existe feriado nessa data.' : erroAmigavel(error));
+  f.reset();
+  await carregarAuxiliares();
+  carregarFeriadosAdmin();
+};
+
+window.removerFeriado = async (data, btn) => {
+  if (!confirm('Remover este feriado?')) return;
+  carregandoBotao(btn, true, 'Removendo...');
+  const { error } = await sb.from('feriados').delete().eq('data', data);
+  carregandoBotao(btn, false);
+  if (error) return alert(erroAmigavel(error));
+  await carregarAuxiliares();
+  carregarFeriadosAdmin();
+};
+
+// ===================== TROCAR SENHA =====================
+$('#btn-senha').onclick = () => abrirPainel('p-senha');
+
+$('#f-senha').onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target; msg(f, '');
+  if ($('#s-nova').value !== $('#s-nova2').value) return msg(f, 'As senhas não conferem.');
+  ocupado(f, true);
+  const { error } = await sb.auth.updateUser({ password: $('#s-nova').value });
+  ocupado(f, false);
+  if (error) return msg(f, /different from the old/i.test(error.message) ? 'A nova senha precisa ser diferente da atual.' : erroAmigavel(error));
+  f.reset();
+  msg(f, 'Senha alterada! Use a nova senha no próximo login.', 'ok');
 };
 
 // ===================== GO =====================

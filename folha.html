@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Folha de Horas Extras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=3"></script>
-<script src="comum.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="comum.js?v=4"></script>
 <style>
   @page { size: A4 landscape; margin: 7mm; }
   * { box-sizing: border-box; }
@@ -15,6 +15,8 @@
   .barra button { background: #fff; color: #00843d; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
   .barra label { display: flex; gap: 6px; align-items: center; }
   .aviso { background: #fff2d6; color: #7a4f00; padding: 8px 16px; font: 13px system-ui, sans-serif; }
+  .folha + .folha { break-before: page; page-break-before: always; }
+  .vazio-folhas { text-align: center; font: 15px system-ui, sans-serif; color: #555; padding: 40px; }
   .folha { background: #fff; width: 283mm; margin: 12px auto; padding: 6mm; box-shadow: 0 1px 6px rgba(0,0,0,.15); }
 
   .cab { display: grid; grid-template-columns: 34mm 1fr; border: 1.2px solid #000; align-items: center; }
@@ -68,14 +70,14 @@
   <div class="folha">
     <div class="cab">
       <div class="logo">raízen</div>
-      <div class="tit">Demonstrativo de Apontamento Diário<br>Espelho de Ponto por Exceção<br><small id="f-periodo"></small></div>
+      <div class="tit">Demonstrativo de Apontamento Diário<br>Espelho de Ponto por Exceção<br><small data-f="periodo"></small></div>
     </div>
 
     <div class="info">
       <div class="campos">
-        <div><b>Nome:</b><span id="f-nome"></span></div>
-        <div><b>CS:</b><span id="f-cs"></span></div>
-        <div><b>Cargo:</b><span id="f-cargo"></span></div>
+        <div><b>Nome:</b><span data-f="nome"></span></div>
+        <div><b>CS:</b><span data-f="cs"></span></div>
+        <div><b>Cargo:</b><span data-f="cargo"></span></div>
       </div>
       <div class="turnos">
         <div>Horário dos Turnos</div>
@@ -112,12 +114,12 @@
           <th>35%</th><th>80%</th><th>80% noturna</th><th>100%</th><th>100% noturna</th>
         </tr>
       </thead>
-      <tbody id="linhas"></tbody>
+      <tbody data-f="linhas"></tbody>
     </table>
 
     <div class="assinaturas">
-      <div><b>Assinatura do Funcionário</b><span id="a-func"></span></div>
-      <div><b>Assinatura do Gestor</b><span id="a-gestor"></span></div>
+      <div><b>Assinatura do Funcionário</b><span data-f="func"></span></div>
+      <div><b>Assinatura do Gestor</b><span data-f="gestor"></span></div>
       <div><b>Lançado no sistema por</b><span>Nome: ____________________ &nbsp; Data: ___/___/_____</span></div>
     </div>
 
@@ -127,7 +129,7 @@
         * Anotar exclusivamente quando for feita jornada diferente da prevista.<br>
         * Horas extras devem ser somadas a quantidade total diária e preenchidas de acordo com coluna correta.<br>
         * O Horário de refeição de 01:00 de descanso deve ser realizado durante a jornada.
-        <div class="gerado" id="gerado"></div>
+        <div class="gerado" data-f="gerado"></div>
       </div>
       <div>
         <b>Exemplo de preenchimento HE:</b><br>
@@ -138,6 +140,6 @@
     </div>
   </div>
 
-<script src="folha.js?v=3"></script>
+<script src="folha.js?v=4"></script>
 </body>
 </html>

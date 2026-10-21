@@ -4,10 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · BPA</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00843d">
+<link rel="icon" href="icone-192.png">
+<link rel="apple-touch-icon" href="icone-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=3"></script>
-<script src="comum.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="comum.js?v=4"></script>
 </head>
 <body>
 
@@ -15,6 +21,7 @@
   <div class="marca">Horas Extras <span>J036 · Base de Paulínia</span></div>
   <div id="usuario" hidden>
     <span id="u-nome"></span>
+    <button id="btn-senha" class="btn-link">Senha</button>
     <button id="btn-sair" class="btn-link">Sair</button>
   </div>
 </header>
@@ -100,6 +107,7 @@
           <div class="grade g5" id="h-colunas"></div>
           <div id="h-conferencia" class="conferencia"></div>
         </fieldset>
+        <div id="h-avisos" class="avisos"></div>
 
         <details id="h-jornada">
           <summary>Jornada diferente da prevista? <small>(opcional)</small></summary>
@@ -138,7 +146,11 @@
     <div id="p-aprovar" class="painel card" hidden>
       <div class="cab-painel">
         <h2>Pendentes de aprovação</h2>
-        <button id="a-atualizar" class="btn sec">Atualizar</button>
+        <div class="filtros">
+          <button id="a-marcar" class="btn sec">Marcar sem ⚠</button>
+          <button id="a-lote" class="btn ok" disabled>Aprovar selecionados</button>
+          <button id="a-atualizar" class="btn sec">Atualizar</button>
+        </div>
       </div>
       <div id="a-lista"></div>
     </div>
@@ -150,8 +162,11 @@
         <div class="filtros">
           <select id="r-periodo"></select>
           <button id="r-csv" class="btn sec">Baixar CSV</button>
+          <button id="r-todas" class="btn sec">Imprimir todas</button>
+          <button id="r-fechar" class="btn so-admin">Fechar período</button>
         </div>
       </div>
+      <p id="r-status" class="status-periodo" hidden></p>
       <div id="r-tabela" class="rolagem"></div>
     </div>
 
@@ -160,11 +175,31 @@
       <h2>Colaboradores</h2>
       <p class="dica">Defina quem é supervisor e quem responde a quem. Só o supervisor direto (ou admin) aprova.</p>
       <div id="e-lista" class="rolagem"></div>
+
+      <h2 class="sub">Feriados</h2>
+      <p class="dica">No domingo ou feriado, o site sugere a coluna 100% no lançamento.</p>
+      <form id="f-feriado" class="linha-form">
+        <input id="fer-data" type="date" required>
+        <input id="fer-desc" placeholder="Descrição (ex.: Aniversário de Paulínia)" required>
+        <button class="btn">Adicionar</button>
+      </form>
+      <div id="fer-lista" class="rolagem"></div>
+    </div>
+
+    <!-- TROCAR SENHA -->
+    <div id="p-senha" class="painel card estreito" hidden>
+      <h2>Trocar senha</h2>
+      <form id="f-senha">
+        <label>Nova senha (mín. 6 caracteres)<input id="s-nova" type="password" autocomplete="new-password" minlength="6" required></label>
+        <label>Confirme a nova senha<input id="s-nova2" type="password" autocomplete="new-password" minlength="6" required></label>
+        <button class="btn">Salvar nova senha</button>
+        <p class="msg" hidden></p>
+      </form>
     </div>
   </section>
 
 </main>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

@@ -30,7 +30,7 @@ body {
   box-shadow: 0 2px 8px rgba(0, 80, 30, .18);
   position: sticky; top: 0; z-index: 20;
 }
-.marca { font-weight: 700; font-size: 17px; }
+.marca { font-weight: 700; font-size: 17px; white-space: nowrap; }
 .marca span { font-weight: 400; opacity: .8; font-size: 13px; margin-left: 6px; }
 #usuario { font-size: 13px; display: flex; gap: 10px; align-items: center; }
 .btn-link { background: none; border: 0; color: #fff; text-decoration: underline; cursor: pointer; font: inherit; }
@@ -192,4 +192,39 @@ button:focus-visible, .aba:focus-visible { outline: 3px solid var(--acento); out
   .rm { padding: 8px; }
   .rm b { font-size: 18px; }
   .tot { flex: 1 1 30%; }
+}
+
+/* ---------- Avisos do lançamento ---------- */
+.avisos { display: grid; gap: 6px; margin: -4px 0 12px; }
+.avisos:empty { display: none; }
+.aviso-l { font-size: 13.5px; padding: 8px 10px; border-radius: 8px; line-height: 1.4; }
+.aviso-l.info { background: #eaf3fb; color: #1c4f7a; }
+.aviso-l.alerta { background: var(--pend-fundo); color: var(--pend); }
+.aviso-l.erro { background: var(--erro-fundo); color: var(--erro); font-weight: 600; }
+.info-t { color: #1c4f7a; }
+
+/* ---------- Aprovação em lote ---------- */
+.sel-lote { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 0 0; font-size: 13px; color: var(--texto); cursor: pointer; }
+.sel-lote input { width: 18px; height: 18px; margin: 0; accent-color: var(--pri); }
+.trava { font-size: 13px; color: var(--suave); align-self: center; }
+
+/* ---------- Status do período ---------- */
+.status-periodo { margin: -2px 0 12px; padding: 8px 12px; border-radius: 8px; font-size: 13.5px; }
+.status-periodo.aberto { background: var(--pri-claro); color: var(--pri-escuro); }
+.status-periodo.fechado { background: #eceff1; color: #37474f; font-weight: 600; }
+
+/* ---------- Feriados ---------- */
+h2.sub { margin-top: 28px; }
+.linha-form { display: grid; grid-template-columns: 170px 1fr auto; gap: 8px; margin-bottom: 12px; }
+.linha-form input { margin: 0; }
+
+@media (max-width: 480px) {
+  .linha-form { grid-template-columns: 1fr; }
+  .sel-lote { flex: 1 1 100%; padding: 4px 0; }
+}
+@media (max-width: 480px) {
+  .marca { font-size: 16px; }
+  #usuario { gap: 8px; min-width: 0; }
+  #p-aprovar .filtros { display: grid; grid-template-columns: 1fr 1fr; }
+  #p-aprovar #a-lote { grid-column: 1 / -1; order: 3; }
 }

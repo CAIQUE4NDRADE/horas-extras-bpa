@@ -28,6 +28,7 @@ body {
   padding: 14px 20px; color: #fff;
   background: linear-gradient(100deg, var(--pri-escuro) 0%, var(--pri) 55%, var(--acento) 100%);
   box-shadow: 0 2px 8px rgba(0, 80, 30, .18);
+  position: sticky; top: 0; z-index: 20;
 }
 .marca { font-weight: 700; font-size: 17px; }
 .marca span { font-weight: 400; opacity: .8; font-size: 13px; margin-left: 6px; }
@@ -124,9 +125,41 @@ summary { cursor: pointer; font-size: 14px; margin-bottom: 10px; }
 .rolagem { overflow-x: auto; }
 table.tab { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tab th, .tab td { padding: 8px; border-bottom: 1px solid var(--linha); text-align: left; white-space: nowrap; }
-.tab th { font-size: 12px; color: var(--suave); font-weight: 600; }
+.tab th { font-size: 12px; color: var(--suave); font-weight: 600; background: var(--pri-claro); position: sticky; top: 0; }
+.tab tbody tr:nth-child(even) td { background: #f6faf7; }
+.tab tbody tr:hover td { background: var(--pri-claro); }
 .tab td.n, .tab th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .tab select { margin: 0; padding: 6px; }
+
+/* Abas fixas logo abaixo do topo */
+.abas { position: sticky; top: 56px; z-index: 15; background: var(--fundo); padding: 6px 0; }
+
+/* Foco visível no teclado */
+button:focus-visible, .aba:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+
+/* Botão discreto (Histórico) */
+.btn.link { background: none; color: var(--pri); padding-left: 4px; padding-right: 4px; text-decoration: underline; }
+.btn.link:hover { background: none; color: var(--pri-escuro); }
+
+/* Histórico */
+.historico { grid-column: 1 / -1; border-left: 3px solid var(--acento); background: #f6faf7; border-radius: 0 8px 8px 0; padding: 8px 12px; font-size: 13px; }
+.hist-linha { padding: 5px 0; border-bottom: 1px dashed var(--linha); }
+.hist-linha:last-child { border-bottom: 0; }
+.hist-linha > b { text-transform: capitalize; color: var(--pri-escuro); }
+.hist-det { color: var(--suave); margin-top: 2px; line-height: 1.5; }
+
+/* Resumo do mês no topo do Lançar */
+.resumo-mes { margin-bottom: 18px; }
+.resumo-mes:empty { display: none; }
+.rm-titulo { font-size: 12px; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.rm-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.rm { border-radius: 12px; padding: 10px 12px; border: 1px solid var(--linha); background: #fff; }
+.rm span { display: block; font-size: 12px; font-weight: 600; }
+.rm b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.rm small { color: var(--suave); font-size: 11px; }
+.rm.ok { background: var(--ok-fundo); border-color: #bfe3cc; } .rm.ok span, .rm.ok b { color: var(--ok); }
+.rm.pend { background: var(--pend-fundo); border-color: #f1d9a6; } .rm.pend span, .rm.pend b { color: var(--pend); }
+.rm.rec { background: var(--erro-fundo); border-color: #f3c3be; } .rm.rec span, .rm.rec b { color: var(--erro); }
 
 @media (max-width: 680px) {
   .g3 { grid-template-columns: 1fr 1fr; }
@@ -134,4 +167,29 @@ table.tab { width: 100%; border-collapse: collapse; font-size: 14px; }
   .g4 { grid-template-columns: 1fr 1fr; }
   .g5 { grid-template-columns: repeat(3, 1fr); }
   .marca span { display: none; }
+}
+
+@media (max-width: 480px) {
+  main { padding: 10px; }
+  .card { padding: 14px; border-radius: 12px; }
+  .topo { padding: 10px 12px; }
+  .abas { top: 48px; }
+  #usuario { font-size: 12px; }
+  #u-nome { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  input, select, textarea { font-size: 16px; padding: 11px 12px; }   /* 16px evita zoom no iPhone */
+  .btn { padding: 13px 16px; width: 100%; }
+  .btn.peq { padding: 10px 12px; width: auto; flex: 1; font-size: 14px; }
+  .btn.link { flex: 0 0 auto; }
+  .acoes { flex-direction: column; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g5 { grid-template-columns: 1fr 1fr; }
+  .cab-painel { flex-direction: column; align-items: stretch; }
+  .filtros { flex-direction: column; align-items: stretch; }
+  .filtros select { width: 100%; }
+  .item { padding: 12px 10px; }
+  .item .recusa { flex-direction: column; }
+  .rm-cards { gap: 6px; }
+  .rm { padding: 8px; }
+  .rm b { font-size: 18px; }
+  .tot { flex: 1 1 30%; }
 }

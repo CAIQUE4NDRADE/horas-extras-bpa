@@ -10,7 +10,21 @@ function msg(form, texto, tipo = 'erro') {
   el.className = 'msg ' + tipo;
   el.hidden = !texto;
 }
-function ocupado(form, sim) { form.querySelectorAll('button').forEach(b => b.disabled = sim); }
+function ocupado(form, sim) {
+  form.querySelectorAll('button').forEach(b => {
+    b.disabled = sim;
+    if (b.type === 'submit' || !b.getAttribute('type')) {
+      if (sim) { b.dataset.txt = b.textContent; b.textContent = 'Aguarde...'; }
+      else if (b.dataset.txt) b.textContent = b.dataset.txt;
+    }
+  });
+}
+function carregandoBotao(btn, sim, texto = 'Aguarde...') {
+  if (!btn) return;
+  btn.disabled = sim;
+  if (sim) { btn.dataset.txt = btn.textContent; btn.textContent = texto; }
+  else if (btn.dataset.txt) btn.textContent = btn.dataset.txt;
+}
 
 // ===================== INÍCIO =====================
 async function iniciar() {
@@ -117,6 +131,7 @@ function montarApp() {
   preencherPeriodos($('#r-periodo'));
   montarColunas();
   limparForm();
+  carregarResumoMes();
   mostrar('v-app');
   abrirPainel('p-lancar');
   if (ehSup()) contarPendentes();
@@ -210,7 +225,72 @@ $('#f-he').onsubmit = async e => {
 
   const eraEdicao = !!editandoId;
   limparForm();
+  carregarResumoMes();
   msg(f, eraEdicao ? 'Lançamento atualizado e reenviado para aprovação.' : 'Lançamento salvo! Aguardando aprovação do supervisor.', 'ok');
+};
+
+// ===================== RESUMO DO MÊS (topo do Lançar) =====================
+async function carregarResumoMes() {
+  const chave = periodoDaData(hojeISO()), p = periodoDe(chave);
+  const box = $('#l-resumo');
+  const { data, error } = await sb.from('horas_extras')
+    .select('status, min_35, min_80, min_80n, min_100, min_100n')
+    .eq('colaborador_id', eu.id).gte('data', p.ini).lte('data', p.fim);
+  if (error) { box.innerHTML = ''; return; }
+  const soma = st => data.filter(r => r.status === st).reduce((a, r) => a + somaColunas(r), 0);
+  const qtd = st => data.filter(r => r.status === st).length;
+  box.innerHTML = `
+    <div class="rm-titulo">Período ${rotuloPeriodo(chave)}</div>
+    <div class="rm-cards">
+      <div class="rm ok"><span>Aprovadas</span><b>${fmtMin(soma('aprovado'), true)}</b><small>${qtd('aprovado')} lançamento(s)</small></div>
+      <div class="rm pend"><span>Pendentes</span><b>${fmtMin(soma('pendente'), true)}</b><small>${qtd('pendente')} lançamento(s)</small></div>
+      <div class="rm rec"><span>Recusadas</span><b>${qtd('recusado')}</b><small>${qtd('recusado') ? 'corrija em Minhas HEs' : 'nenhuma'}</small></div>
+    </div>`;
+}
+
+// ===================== HISTÓRICO =====================
+const ROTULOS_CAMPO = {
+  data: 'Data', turno: 'Turno', inicio: 'Início', fim: 'Fim', justificativa: 'Justificativa',
+  jornada_entrada: 'Entrada', jornada_saida: 'Saída', refeicao_inicio: 'Refeição início', refeicao_fim: 'Refeição fim',
+  min_35: '35%', min_80: '80%', min_80n: '80% noturna', min_100: '100%', min_100n: '100% noturna', motivo_recusa: 'Motivo recusa'
+};
+function valorCampo(campo, v) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (campo.startsWith('min_')) return fmtMin(v, true);
+  if (campo === 'data') return br(v);
+  if (/inicio|fim|entrada|saida/.test(campo)) return hhmm(v);
+  return esc(v);
+}
+
+window.verHistorico = async (id, btn) => {
+  const box = $('#hist-' + id);
+  if (!box.hidden) { box.hidden = true; return; }
+  carregandoBotao(btn, true, 'Carregando...');
+  const { data, error } = await sb.from('he_historico').select('*').eq('he_id', id).order('alterado_em');
+  carregandoBotao(btn, false);
+  if (error) { box.innerHTML = `<p class="msg erro">${esc(error.message)}</p>`; box.hidden = false; return; }
+
+  // nomes de quem alterou
+  const ids = [...new Set(data.map(h => h.alterado_por).filter(Boolean))];
+  let nomes = {};
+  if (ids.length) {
+    const { data: pes } = await sb.from('colaboradores').select('id, nome').in('id', ids);
+    (pes || []).forEach(p => nomes[p.id] = p.nome);
+  }
+
+  box.innerHTML = data.length ? data.map(h => {
+    let det = '';
+    if (h.acao === 'editou' && h.antes && h.depois) {
+      det = Object.keys(ROTULOS_CAMPO)
+        .filter(c => JSON.stringify(h.antes[c]) !== JSON.stringify(h.depois[c]))
+        .map(c => `${ROTULOS_CAMPO[c]}: ${valorCampo(c, h.antes[c])} → <b>${valorCampo(c, h.depois[c])}</b>`).join('<br>');
+    }
+    if (h.acao === 'recusou' && h.depois) det = 'Motivo: ' + esc(h.depois.motivo_recusa);
+    const quem = nomes[h.alterado_por] || (h.alterado_por ? 'usuário' : 'sistema');
+    return `<div class="hist-linha"><b>${h.acao}</b> · ${esc(quem)} · ${new Date(h.alterado_em).toLocaleString('pt-BR')}
+      ${det ? `<div class="hist-det">${det}</div>` : ''}</div>`;
+  }).join('') : '<p class="dica">Sem histórico registrado (lançamentos feitos antes do histórico ser ativado).</p>';
+  box.hidden = false;
 };
 
 // ===================== MINHAS =====================
@@ -248,16 +328,18 @@ function itemHTML(r, meu) {
   if (r.status === 'aprovado' && r.aprovador) extra = `<div class="det">Aprovado por ${esc(r.aprovador.nome)} em ${new Date(r.aprovado_em).toLocaleDateString('pt-BR')}</div>`;
   if (r.status === 'recusado') extra = `<div class="det" style="color:var(--erro)">Recusado: ${esc(r.motivo_recusa)}. Corrija e salve de novo.</div>`;
 
-  let botoes = '';
+  const btnHist = `<button class="btn link peq" onclick="verHistorico(${r.id}, this)">Histórico</button>`;
+  let botoes = `<div class="botoes">${btnHist}</div>`;
   if (meu && r.status !== 'aprovado') botoes = `<div class="botoes">
       <button class="btn sec peq" onclick="editar(${r.id})">Editar</button>
-      <button class="btn perigo peq" onclick="excluir(${r.id})">Excluir</button></div>`;
+      <button class="btn perigo peq" onclick="excluir(${r.id}, this)">Excluir</button>${btnHist}</div>`;
   if (!meu) botoes = `<div class="botoes">
-      <button class="btn ok peq" onclick="decidir(${r.id}, true)">Aprovar</button>
-      <button class="btn perigo peq" onclick="mostrarRecusa(${r.id})">Recusar</button></div>
+      <button class="btn ok peq" onclick="decidir(${r.id}, true, this)">Aprovar</button>
+      <button class="btn perigo peq" onclick="mostrarRecusa(${r.id})">Recusar</button>${btnHist}</div>
     <div class="recusa" id="rec-${r.id}" hidden>
       <input id="rec-txt-${r.id}" placeholder="Motivo da recusa">
-      <button class="btn perigo peq" onclick="decidir(${r.id}, false)">Confirmar</button></div>`;
+      <button class="btn perigo peq" onclick="decidir(${r.id}, false, this)">Confirmar</button></div>`;
+  botoes += `<div class="historico" id="hist-${r.id}" hidden></div>`;
 
   return `<div class="item">
     <div class="lin1">${nome}${br(r.data)} ${diaSemana(r.data)} · ${r.turno} · ${hhmm(r.inicio)} às ${hhmm(r.fim)}</div>
@@ -290,11 +372,14 @@ window.editar = id => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-window.excluir = async id => {
+window.excluir = async (id, btn) => {
   if (!confirm('Excluir este lançamento?')) return;
+  carregandoBotao(btn, true, 'Excluindo...');
   const { error } = await sb.from('horas_extras').delete().eq('id', id);
+  carregandoBotao(btn, false);
   if (error) return alert(erroAmigavel(error));
   carregarMinhas();
+  carregarResumoMes();
 };
 
 // ===================== APROVAR =====================
@@ -320,10 +405,12 @@ async function carregarPendentes() {
 
 window.mostrarRecusa = id => { const el = $('#rec-' + id); el.hidden = !el.hidden; if (!el.hidden) $('#rec-txt-' + id).focus(); };
 
-window.decidir = async (id, aprovar) => {
+window.decidir = async (id, aprovar, btn) => {
   const motivo = aprovar ? null : $('#rec-txt-' + id).value.trim();
   if (!aprovar && !motivo) return alert('Informe o motivo da recusa.');
+  carregandoBotao(btn, true, aprovar ? 'Aprovando...' : 'Recusando...');
   const { error } = await sb.rpc('decidir_he', { p_id: id, p_aprovar: aprovar, p_motivo: motivo });
+  carregandoBotao(btn, false);
   if (error) return alert(erroAmigavel(error));
   carregarPendentes();
 };

@@ -108,3 +108,18 @@ function minutosNoturnos(ini, fim) {
   }
   return n;
 }
+
+// Minutos da HE que caem DENTRO do horário de trabalho (turno previsto ou jornada informada)
+function minutosDentroDoTurno(ini, fim, turno, jEnt, jSai) {
+  const t = TURNOS[turno];
+  const ent = hhmm(jEnt) || t?.entrada, sai = hhmm(jSai) || t?.saida;
+  if (!ent || !sai || !ini || !fim) return 0;
+  const tIni = toMin(ent), tDur = duracao(ent, sai);
+  const dentro = m => ((m - tIni) % 1440 + 1440) % 1440 < tDur;
+  const a = toMin(hhmm(ini)), total = duracao(ini, fim);
+  let n = 0;
+  for (let i = 0; i < total; i++) if (dentro((a + i) % 1440)) n++;
+  return n;
+}
+const TOLERANCIA_TURNO = 10; // minutos de sobreposição ignorados
+

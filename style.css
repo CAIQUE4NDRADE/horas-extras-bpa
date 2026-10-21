@@ -228,3 +228,19 @@ h2.sub { margin-top: 28px; }
   #p-aprovar .filtros { display: grid; grid-template-columns: 1fr 1fr; }
   #p-aprovar #a-lote { grid-column: 1 / -1; order: 3; }
 }
+
+/* ---------- Avisar supervisor / cadastros novos ---------- */
+#h-avisar { margin-top: 10px; }
+.btn.whats { display: inline-block; text-decoration: none; background: #1fa855; }
+.btn.whats:hover { background: #178a45; }
+.pend-cad { background: var(--pend-fundo); border: 1px solid #f1d9a6; border-radius: 12px; padding: 14px 14px 6px; margin-bottom: 22px; }
+.pend-cad h2 { color: var(--pend); display: flex; align-items: center; gap: 8px; }
+.pend-cad .item { background: #fff; }
+#v-aguardando p { margin: 0 0 12px; }
+@media (max-width: 480px) { .btn.whats { width: 100%; text-align: center; } }
+
+/* ---------- Cadastros aguardando liberação ---------- */
+.pend-cad { background: var(--pend-fundo); border: 1px solid #f1d9a6; border-radius: 12px; padding: 14px 14px 6px; margin-bottom: 22px; }
+.pend-cad h2 { color: var(--pend); display: flex; align-items: center; gap: 8px; }
+.pend-cad .item { background: #fff; }
+#v-aguardando p { margin: 0 0 12px; }

@@ -48,11 +48,13 @@ async function iniciar() {
   if (error) { alert('Erro ao carregar perfil: ' + error.message); return; }
   if (!data) { await prepararPerfil(session.user); return; }
   if (!data.ativo) {
-    await sb.auth.signOut();
-    mostrar('v-login');
-    msg($('#f-login'), 'Seu cadastro está inativo. Fale com o administrador.');
+    $('#usuario').hidden = false;
+    $('#u-nome').textContent = `${data.nome} · ${data.cs.toUpperCase()}`;
+    $('#btn-senha').hidden = true;
+    mostrar('v-aguardando');
     return;
   }
+  $('#btn-senha').hidden = false;
   eu = data;
   montarApp();
 }
@@ -122,6 +124,9 @@ $('#f-perfil').onsubmit = async e => {
   iniciar();
 };
 
+$('#ag-verificar').onclick = () => iniciar();
+$('#ag-sair').onclick = () => $('#btn-sair').click();
+
 $('#btn-sair').onclick = async () => {
   // scope 'local' encerra a sessão neste aparelho sem depender do servidor responder
   try { await sb.auth.signOut({ scope: 'local' }); } catch (e) { console.warn(e); }
@@ -148,6 +153,7 @@ function montarApp() {
   mostrar('v-app');
   abrirPainel('p-lancar');
   if (ehSup()) contarPendentes();
+  if (ehAdmin()) contarCadastros();
   carregarAuxiliares().then(conferir);
 }
 
@@ -178,7 +184,7 @@ function mascaraHora(inp) {
 
 ['#h-inicio', '#h-fim', '#h-data'].forEach(s => $(s).addEventListener('input', conferir));
 $('#h-data').addEventListener('change', conferir);
-$('#h-turno').addEventListener('change', mostrarPrevisto);
+$('#h-turno').addEventListener('change', () => { mostrarPrevisto(); conferir(); });
 
 function mostrarPrevisto() {
   const t = TURNOS[$('#h-turno').value];
@@ -212,6 +218,11 @@ function mostrarAvisos() {
   }
   const noct = minutosNoturnos(ini, fim);
   if (noct) av.push(['info', `🌙 Desse horário, <b>${fmtMin(noct, true)}</b> caiu entre 22h e 5h (período noturno).`]);
+  const dentro = minutosDentroDoTurno(ini, fim, $('#h-turno').value);
+  if (dentro > TOLERANCIA_TURNO) {
+    const t = TURNOS[$('#h-turno').value];
+    av.push(['alerta', `⚠ ${fmtMin(dentro, true)} dessa HE cai dentro do horário do ${$('#h-turno').value} (${t.entrada} às ${t.saida}). Confira o turno e os horários. Se a jornada foi diferente, informe em "Jornada diferente da prevista".`]);
+  }
   if (total > 120) av.push(['alerta', `⚠ Acima de 2h de hora extra no dia (${fmtMin(total, true)}). O limite legal é 2h, salvo exceções. Explique bem na justificativa.`]);
   $('#h-avisos').innerHTML = av.map(([t, txt]) => `<div class="aviso-l ${t}">${txt}</div>`).join('');
 }
@@ -263,6 +274,7 @@ $('#f-he').onsubmit = async e => {
   carregarResumoMes();
   msg(f, eraEdicao ? 'Lançamento atualizado e reenviado para aprovação.' : 'Lançamento salvo! Aguardando aprovação do supervisor.', 'ok');
 };
+
 
 // ===================== RESUMO DO MÊS (topo do Lançar) =====================
 async function carregarResumoMes() {
@@ -358,6 +370,7 @@ function detalheColunas(r) {
 function itemHTML(r, meu) {
   const total = duracao(r.inicio, r.fim), soma = somaColunas(r);
   const diverge = total !== soma, acima2h = Math.max(total, soma) > 120;
+  const noTurno = minutosDentroDoTurno(r.inicio, r.fim, r.turno) > TOLERANCIA_TURNO;
   const travado = periodoFechado(r.data) && !ehAdmin();
   const nome = meu ? '' : `<b>${esc(r.colaborador?.nome)}</b> (${esc((r.colaborador?.cs || '').toUpperCase())}) · `;
   const rotStatus = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado' }[r.status];
@@ -372,7 +385,7 @@ function itemHTML(r, meu) {
       <button class="btn sec peq" onclick="editar(${r.id})">Editar</button>
       <button class="btn perigo peq" onclick="excluir(${r.id}, this)">Excluir</button>${btnHist}</div>`;
   if (!meu) botoes = `<div class="botoes">
-      <label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h ? 0 : 1}"> Selecionar</label>
+      <label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h || noTurno ? 0 : 1}"> Selecionar</label>
       <button class="btn ok peq" onclick="decidir(${r.id}, true, this)">Aprovar</button>
       <button class="btn perigo peq" onclick="mostrarRecusa(${r.id})">Recusar</button>${btnHist}</div>
     <div class="recusa" id="rec-${r.id}" hidden>
@@ -383,7 +396,7 @@ function itemHTML(r, meu) {
   return `<div class="item">
     <div class="lin1">${nome}${br(r.data)} ${diaSemana(r.data)} · ${r.turno} · ${hhmm(r.inicio)} às ${hhmm(r.fim)}</div>
     <span class="st ${r.status}">${rotStatus}</span>
-    <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
+    <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${noTurno ? ` · <span class="alerta">⚠ dentro do horário do ${r.turno}</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
     <div class="det">${esc(r.justificativa)}</div>
     ${extra}${botoes}
   </div>`;
@@ -552,6 +565,33 @@ async function carregarResumo() {
     </tr>`).join('')}</tbody></table>`;
 }
 
+function baixarCSV(nome, linhas) {
+  const csv = '\ufeff' + linhas.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = nome;
+  a.click();
+}
+
+$('#r-csv-det').onclick = async () => {
+  const p = periodoDe($('#r-periodo').value), btn = $('#r-csv-det');
+  carregandoBotao(btn, true, 'Gerando...');
+  const { data, error } = await sb.from('horas_extras')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo), aprovador:colaboradores!horas_extras_aprovado_por_fkey(nome)')
+    .gte('data', p.ini).lte('data', p.fim).order('data');
+  carregandoBotao(btn, false);
+  if (error) return alert(erroAmigavel(error));
+  if (!data.length) return alert('Nenhum lançamento neste período.');
+  data.sort((a, b) => (a.colaborador?.nome || '').localeCompare(b.colaborador?.nome || '') || a.data.localeCompare(b.data));
+  const cab = ['Nome', 'CS', 'Cargo', 'Data', 'Dia', 'Turno', 'Início', 'Fim', 'Total pelo horário',
+    ...COLUNAS.map(c => c.rotulo), 'Soma colunas', 'Justificativa', 'Status', 'Aprovado/recusado por', 'Em', 'Motivo recusa'];
+  const linhas = data.map(r => [r.colaborador?.nome, (r.colaborador?.cs || '').toUpperCase(), r.colaborador?.cargo,
+    br(r.data), diaSemana(r.data), r.turno, hhmm(r.inicio), hhmm(r.fim), fmtMin(duracao(r.inicio, r.fim), true),
+    ...COLUNAS.map(c => fmtMin(r[c.campo], true)), fmtMin(somaColunas(r), true), r.justificativa, r.status,
+    r.aprovador?.nome || '', r.aprovado_em ? new Date(r.aprovado_em).toLocaleString('pt-BR') : '', r.motivo_recusa || '']);
+  baixarCSV(`horas-extras-detalhado_${p.chave}.csv`, [cab, ...linhas]);
+};
+
 $('#r-csv').onclick = () => {
   if (!cacheResumo.length) return;
   const cab = ['Nome', 'CS', 'Cargo', ...COLUNAS.map(c => c.rotulo), 'Total', 'Pendentes'];
@@ -565,10 +605,31 @@ $('#r-csv').onclick = () => {
 };
 
 // ===================== EQUIPE (admin) =====================
+async function contarCadastros() {
+  const { count } = await sb.from('colaboradores').select('id', { count: 'exact', head: true }).eq('ativo', false);
+  const b = $('#badge-cad');
+  b.textContent = count || ''; b.hidden = !count;
+}
+
 async function carregarEquipe() {
   $('#e-lista').innerHTML = '<p class="vazio">Carregando...</p>';
   const { data, error } = await sb.from('colaboradores').select('*').order('nome');
   if (error) { $('#e-lista').innerHTML = `<p class="msg erro">${esc(error.message)}</p>`; return; }
+  const supNome = Object.fromEntries(data.map(c => [c.id, c.nome]));
+  const novos = data.filter(c => !c.ativo);
+  $('#e-pendentes').innerHTML = novos.length ? `<div class="pend-cad">
+    <h2>Aguardando liberação <span class="badge">${novos.length}</span></h2>
+    <p class="dica">Confira se a pessoa é da equipe antes de liberar. Depois de liberada, ela já pode lançar HE.</p>
+    ${novos.map(c => `<div class="item">
+      <div class="lin1">${esc(c.nome)} · ${esc(c.cs.toUpperCase())}</div>
+      <span class="st pendente">Novo</span>
+      <div class="det">${esc(c.cargo)} · ${c.turno} · Supervisor: ${esc(supNome[c.supervisor_id] || '—')} · cadastrado em ${new Date(c.criado_em).toLocaleDateString('pt-BR')}</div>
+      <div class="botoes">
+        <button class="btn ok peq" onclick="liberarCadastro('${c.id}', true, this)">Liberar</button>
+        <button class="btn perigo peq" onclick="liberarCadastro('${c.id}', false, this)">Não reconheço</button>
+      </div>
+    </div>`).join('')}</div>` : '';
+  contarCadastros();
   const sups = data.filter(c => c.papel !== 'colaborador');
   const optSup = sel => '<option value="">—</option>' + sups.map(s =>
     `<option value="${s.id}" ${s.id === sel ? 'selected' : ''}>${esc(s.nome)}</option>`).join('');
@@ -586,6 +647,18 @@ async function carregarEquipe() {
       <td><button class="btn peq" onclick="salvarColab(this)">Salvar</button></td>
     </tr>`).join('')}</tbody></table>`;
 }
+
+window.liberarCadastro = async (id, liberar, btn) => {
+  if (!liberar) {
+    alert('O cadastro continua bloqueado e a pessoa não consegue lançar nada.\n\nPara apagar a conta de vez: Supabase > Authentication > Users > (usuário) > Delete user.');
+    return;
+  }
+  carregandoBotao(btn, true, 'Liberando...');
+  const { error } = await sb.from('colaboradores').update({ ativo: true }).eq('id', id);
+  carregandoBotao(btn, false);
+  if (error) return alert(erroAmigavel(error));
+  carregarEquipe();
+};
 
 window.salvarColab = async btn => {
   const tr = btn.closest('tr');
@@ -635,6 +708,7 @@ window.removerFeriado = async (data, btn) => {
 
 // ===================== TROCAR SENHA =====================
 $('#btn-senha').onclick = () => abrirPainel('p-senha');
+
 
 $('#f-senha').onsubmit = async e => {
   e.preventDefault();

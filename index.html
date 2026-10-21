@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · BPA</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#00843d">
 <link rel="icon" href="icone-192.png">
@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=4"></script>
-<script src="comum.js?v=4"></script>
+<script src="config.js?v=5"></script>
+<script src="comum.js?v=5"></script>
 </head>
 <body>
 
@@ -72,6 +72,17 @@
     </form>
   </section>
 
+  <!-- ========== AGUARDANDO LIBERAÇÃO ========== -->
+  <section id="v-aguardando" class="view card estreito" hidden>
+    <h2>Cadastro enviado ✓</h2>
+    <p>Seu cadastro foi recebido e está <b>aguardando liberação</b> do administrador.</p>
+    <p class="dica">Assim que for liberado, é só entrar de novo com seu CS e senha. Se demorar, fale com o administrador do sistema.</p>
+    <div class="acoes">
+      <button id="ag-verificar" class="btn">Verificar de novo</button>
+      <button id="ag-sair" class="btn sec">Sair</button>
+    </div>
+  </section>
+
   <!-- ========== APLICAÇÃO ========== -->
   <section id="v-app" class="view" hidden>
     <nav class="abas">
@@ -79,7 +90,7 @@
       <button class="aba" data-painel="p-minhas">Minhas HEs</button>
       <button class="aba so-sup" data-painel="p-aprovar">Aprovar <b id="badge-pend" class="badge" hidden></b></button>
       <button class="aba so-sup" data-painel="p-resumo">Resumo</button>
-      <button class="aba so-admin" data-painel="p-equipe">Equipe</button>
+      <button class="aba so-admin" data-painel="p-equipe">Equipe <b id="badge-cad" class="badge" hidden></b></button>
     </nav>
 
     <!-- LANÇAR -->
@@ -161,7 +172,8 @@
         <h2>Resumo do período <small>(só aprovadas)</small></h2>
         <div class="filtros">
           <select id="r-periodo"></select>
-          <button id="r-csv" class="btn sec">Baixar CSV</button>
+          <button id="r-csv" class="btn sec">CSV totais</button>
+          <button id="r-csv-det" class="btn sec">CSV detalhado</button>
           <button id="r-todas" class="btn sec">Imprimir todas</button>
           <button id="r-fechar" class="btn so-admin">Fechar período</button>
         </div>
@@ -172,6 +184,7 @@
 
     <!-- EQUIPE (admin) -->
     <div id="p-equipe" class="painel card" hidden>
+      <div id="e-pendentes"></div>
       <h2>Colaboradores</h2>
       <p class="dica">Defina quem é supervisor e quem responde a quem. Só o supervisor direto (ou admin) aprova.</p>
       <div id="e-lista" class="rolagem"></div>
@@ -200,6 +213,6 @@
 
 </main>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

@@ -51,6 +51,15 @@ function casosDeTeste() {
     ['Exceção sem horário → 0', adicionalDaJornada('EX'), 0],
     ['HE 06:00 às 08:00 em exceção 22:00–06:00 → fora da jornada', minutosDentroDoTurno('06:00', '08:00', 'EX', '22:00', '06:00'), 0],
 
+    ['Horário de refeição descontado', null, null],
+    ['HE 08:00 às 20:00 com refeição 12:00 às 13:00 → 11:00', fmtMin(totalHE('08:00', '20:00', '12:00', '13:00')), '11:00'],
+    ['HE 16:00 às 18:00 com refeição 12:00 às 13:00 (fora da HE) → 02:00', fmtMin(totalHE('16:00', '18:00', '12:00', '13:00')), '02:00'],
+    ['HE sem refeição informada → não desconta', fmtMin(totalHE('08:00', '10:00')), '02:00'],
+    ['HE 20:00 às 04:00 com refeição 00:00 às 01:00 → noturna 05:00', fmtMin(noturnoHE('20:00', '04:00', '00:00', '01:00')), '05:00'],
+    ['T3 com refeição 03:00 às 04:00 → adicional 06:48', fmtMin(adicionalDaJornada('T3', '', '', '03:00', '04:00')), '06:48'],
+    ['T2 com refeição 23:00 às 23:30 → adicional 01:30', fmtMin(adicionalDaJornada('T2', '', '', '23:00', '23:30')), '01:30'],
+    ['T2 com refeição 19:00 às 20:00 (antes das 22h) → adicional 02:00', fmtMin(adicionalDaJornada('T2', '', '', '19:00', '20:00')), '02:00'],
+
     ['Conversões e cadastro', null, null],
     ['"01:15" = 75 minutos', toMin('01:15'), 75],
     ['"1:5" é inválido', isNaN(toMin('1:5')), true],

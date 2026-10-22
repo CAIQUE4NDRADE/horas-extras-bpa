@@ -167,8 +167,28 @@ function jornadaDe(turno, ent, sai) {
   return t ? { ent: t.entrada, sai: t.saida } : null;
 }
 // Adicional noturno 35%: das 22:00 às 05:00. No T3, conta a jornada inteira (23:50 às 07:38).
-function adicionalDaJornada(turno, ent, sai) {
+// A refeição (se informada) é descontada.
+function adicionalDaJornada(turno, ent, sai, rIni, rFim) {
   const j = jornadaDe(turno, ent, sai);
   if (!j) return 0;
-  return turno === 'T3' ? duracao(j.ent, j.sai) : minutosNoturnos(j.ent, j.sai);
+  return turno === 'T3' ? totalHE(j.ent, j.sai, rIni, rFim) : noturnoHE(j.ent, j.sai, rIni, rFim);
 }
+
+// Horário de refeição: os minutos que caem dentro da refeição são descontados
+function naFaixa(m, a, b) {
+  const d = duracao(a, b);
+  return d > 0 && ((m - toMin(hhmm(a))) % 1440 + 1440) % 1440 < d;
+}
+function contarMin(ini, fim, cond) {
+  const total = duracao(ini, fim), a = toMin(hhmm(ini));
+  let n = 0;
+  for (let i = 0; i < total; i++) if (cond((a + i) % 1440)) n++;
+  return n;
+}
+const ehNoturno = m => m >= 1320 || m < 300;
+// Minutos de refeição que caem dentro do intervalo
+function refeicaoDentro(ini, fim, rIni, rFim) { return contarMin(ini, fim, m => naFaixa(m, rIni, rFim)); }
+// Total da HE já sem a refeição
+function totalHE(ini, fim, rIni, rFim) { return duracao(ini, fim) - refeicaoDentro(ini, fim, rIni, rFim); }
+// Parte noturna da HE já sem a refeição
+function noturnoHE(ini, fim, rIni, rFim) { return contarMin(ini, fim, m => ehNoturno(m) && !naFaixa(m, rIni, rFim)); }

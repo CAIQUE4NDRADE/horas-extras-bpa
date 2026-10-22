@@ -208,7 +208,7 @@ function montarColunas() {
     $('#h-adic-sim').checked = c.dataset.adic === '1';
     $('#h-adic-sim').dispatchEvent(new Event('change'));
   });
-  ['#h-ex-ent', '#h-ex-sai', '#h-jent', '#h-jsai'].forEach(s => $(s).addEventListener('input', conferir));
+  ['#h-ex-ent', '#h-ex-sai', '#h-jent', '#h-jsai', '#h-rini', '#h-rfim'].forEach(s => $(s).addEventListener('input', conferir));
   $('#h-motivos').innerHTML = MOTIVOS.map(m => `<button type="button" class="chip">${esc(m)}</button>`).join('') +
     '<button type="button" class="chip chip-outro" data-outro="1">Outro</button>';
   $$('#h-motivos .chip').forEach(b => b.onclick = () => {
@@ -257,19 +257,19 @@ let modoManual = false;
 // coluna diurna -> coluna noturna correspondente (para separar 22h–5h)
 const PAR_NOTURNO = { min_80: 'min_80n', min_100: 'min_100n' };
 function rotuloCol(campo) { return COLUNAS.find(c => c.campo === campo)?.rotulo || ''; }
-function calcularDistribuicao(pct, ini, fim, separar) {
+function calcularDistribuicao(pct, ini, fim, separar, rIni, rFim) {
   const out = Object.fromEntries(COLUNAS_HE.map(c => [c.campo, 0]));
-  const total = duracao(ini, fim);
+  const total = totalHE(ini, fim, rIni, rFim);
   if (!pct || !total) return out;
   const noturna = PAR_NOTURNO[pct];
-  const noct = noturna && separar ? minutosNoturnos(ini, fim) : 0;
+  const noct = noturna && separar ? noturnoHE(ini, fim, rIni, rFim) : 0;
   out[pct] = total - noct;
   if (noturna) out[noturna] = noct;
   return out;
 }
 function distribuir() {
   if (modoManual || !pctEscolhido) return;
-  const d = calcularDistribuicao(pctEscolhido, $('#h-inicio').value, $('#h-fim').value, $('#h-sep-noct').checked);
+  const d = calcularDistribuicao(pctEscolhido, $('#h-inicio').value, $('#h-fim').value, $('#h-sep-noct').checked, $('#h-rini').value, $('#h-rfim').value);
   COLUNAS_HE.forEach(c => $('#h-' + c.campo).value = fmtMin(d[c.campo]));
 }
 function marcarChips() {
@@ -295,12 +295,13 @@ $$('[data-dia]').forEach(b => b.onclick = () => {
 function conferir() {
   distribuir();
   const ini = $('#h-inicio').value, fim = $('#h-fim').value, data = $('#h-data').value;
-  const total = duracao(ini, fim), noct = minutosNoturnos(ini, fim);
+  const total = totalHE(ini, fim, $('#h-rini').value, $('#h-rfim').value), noct = noturnoHE(ini, fim, $('#h-rini').value, $('#h-rfim').value);
+  const refHE = refeicaoDentro(ini, fim, $('#h-rini').value, $('#h-rfim').value);
   mostrarAvisos();
 
   // total do horário
   $('#h-total').hidden = !total;
-  $('#h-total').innerHTML = total ? `Total: <b>${fmtMin(total, true)}</b>${noct ? ` <span>· ${fmtMin(noct, true)} no período noturno (22h–5h)</span>` : ''}` : '';
+  $('#h-total').innerHTML = total ? `Total: <b>${fmtMin(total, true)}</b>${noct ? ` <span>· ${fmtMin(noct, true)} no período noturno (22h–5h)</span>` : ''}${refHE ? ` <span>· refeição ${fmtMin(refHE, true)} descontada</span>` : ''}` : '';
 
   // almoço corrido só aparece quando a HE cai dentro do turno
   const jorC = jornadaForm();
@@ -322,7 +323,7 @@ function conferir() {
   const adic = toMin($('#h-min_35').value);
   // adicional noturno: calculado pela jornada quando marcado (pode ajustar à mão)
   const jor = jornadaForm(), sim = $('#h-adic-sim').checked;
-  const calcAdic = jor ? adicionalDaJornada($('#h-turno').value, jor.ent, jor.sai) : 0;
+  const calcAdic = jor ? adicionalDaJornada($('#h-turno').value, jor.ent, jor.sai, $('#h-rini').value, $('#h-rfim').value) : 0;
   $('#h-adic-linha').hidden = !sim;
   $$('#h-adic-chips .chip').forEach(c => c.classList.toggle('ativo', (c.dataset.adic === '1') === sim));
   if (sim && !$('#h-min_35').dataset.manual) $('#h-min_35').value = fmtMin(calcAdic, true);
@@ -351,7 +352,7 @@ function conferir() {
 // Avisos que ajudam o operador a escolher a coluna (não bloqueiam, exceto período fechado)
 function mostrarAvisos() {
   const data = $('#h-data').value, ini = $('#h-inicio').value, fim = $('#h-fim').value;
-  const total = duracao(ini, fim), av = [];
+  const total = totalHE(ini, fim, $('#h-rini').value, $('#h-rfim').value), av = [];
   if (data && periodoFechado(data)) {
     av.push(['erro', `🔒 O período ${rotuloPeriodo(periodoDaData(data))} está fechado. ${ehAdmin() ? 'Como admin, você ainda pode lançar.' : 'Não é possível lançar nesta data.'}`]);
   }
@@ -408,7 +409,7 @@ $('#f-he').onsubmit = async e => {
   if (!duracao(reg.inicio, reg.fim)) return msg(f, 'Informe o horário em que a HE começou e terminou (passo 2).');
   if (!modoManual && !pctEscolhido) return msg(f, 'Escolha o percentual da hora extra (passo 3).');
   if (!somaColunas(reg) && !reg.min_35) return msg(f, 'Preencha as horas da HE ou do adicional noturno.');
-  if (modoManual && somaColunas(reg) !== duracao(reg.inicio, reg.fim) &&
+  if (modoManual && somaColunas(reg) !== totalHE(reg.inicio, reg.fim, reg.refeicao_inicio, reg.refeicao_fim) &&
       !confirm('A soma das colunas não bate com o horário. Salvar mesmo assim?')) return;
   if (!reg.justificativa) return msg(f, 'A justificativa é obrigatória.');
   if (periodoFechado(reg.data) && !ehAdmin()) return msg(f, 'Esse período já está fechado. Fale com o administrador.');
@@ -531,7 +532,7 @@ function detalheColunas(r) {
 }
 
 function itemHTML(r, meu, opc = {}) {
-  const total = duracao(r.inicio, r.fim), soma = somaColunas(r);
+  const total = totalHE(r.inicio, r.fim, r.refeicao_inicio, r.refeicao_fim), soma = somaColunas(r);
   const diverge = total !== soma, acima2h = Math.max(total, soma) > 120;
   const noTurno = !r.almoco_corrido && minutosDentroDoTurno(r.inicio, r.fim, r.turno, r.jornada_entrada, r.jornada_saida) > TOLERANCIA_TURNO;
   const travado = periodoFechado(r.data) && !ehAdmin();
@@ -778,7 +779,7 @@ $('#r-csv-det').onclick = async () => {
   const cab = ['Nome', 'CS', 'Cargo', 'Data', 'Dia', 'Turno', 'Início', 'Fim', 'Total pelo horário',
     ...COLUNAS.map(c => c.rotulo), 'Total HE', 'Almoço corrido', 'Justificativa', 'Status', 'Aprovado/recusado por', 'Em', 'Motivo recusa'];
   const linhas = data.map(r => [r.colaborador?.nome, (r.colaborador?.cs || '').toUpperCase(), r.colaborador?.cargo,
-    br(r.data), diaSemana(r.data), r.turno, hhmm(r.inicio), hhmm(r.fim), fmtMin(duracao(r.inicio, r.fim), true),
+    br(r.data), diaSemana(r.data), r.turno, hhmm(r.inicio), hhmm(r.fim), fmtMin(totalHE(r.inicio, r.fim, r.refeicao_inicio, r.refeicao_fim), true),
     ...COLUNAS.map(c => fmtMin(r[c.campo], true)), fmtMin(somaColunas(r), true), r.almoco_corrido ? 'Sim' : '', r.justificativa, r.status,
     r.aprovador?.nome || '', r.aprovado_em ? new Date(r.aprovado_em).toLocaleString('pt-BR') : '', r.motivo_recusa || '']);
   baixarCSV(`horas-extras-detalhado_${p.chave}.csv`, [cab, ...linhas]);

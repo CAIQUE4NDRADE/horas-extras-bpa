@@ -151,6 +151,7 @@ function montarApp() {
   preencherPeriodos($('#m-periodo'));
   preencherPeriodos($('#r-periodo'));
   preencherPeriodos($('#pn-periodo'));
+  preencherPeriodos($('#au-periodo'));
   montarColunas();
   limparForm();
   carregarResumoMes();
@@ -184,6 +185,7 @@ function abrirPainel(id) {
   if (id === 'p-aprovar') carregarPendentes();
   if (id === 'p-resumo') carregarResumo();
   if (id === 'p-equipe') { carregarEquipe(); carregarFeriadosAdmin(); }
+  if (id === 'p-auditoria') prepararAuditoria();
   if (id === 'p-senha') { $('#f-senha').reset(); msg($('#f-senha'), ''); }
 }
 
@@ -414,6 +416,11 @@ const ROTULOS_CAMPO = {
   jornada_entrada: 'Entrada', jornada_saida: 'Saída', refeicao_inicio: 'Refeição início', refeicao_fim: 'Refeição fim',
   min_35: '35%', min_80: '80%', min_80n: '80% noturna', min_100: '100%', min_100n: '100% noturna', motivo_recusa: 'Motivo recusa', almoco_corrido: 'Almoço corrido'
 };
+// ignora diferença entre vazio e 00:00 nas colunas
+function mudou(c, a, b) {
+  const n = v => c.startsWith('min_') ? (v || 0) : (v ?? '');
+  return JSON.stringify(n(a)) !== JSON.stringify(n(b));
+}
 function valorCampo(campo, v) {
   if (v === null || v === undefined || v === '') return '—';
   if (campo.startsWith('min_')) return fmtMin(v, true);
@@ -442,7 +449,7 @@ window.verHistorico = async (id, btn) => {
     let det = '';
     if (h.acao === 'editou' && h.antes && h.depois) {
       det = Object.keys(ROTULOS_CAMPO)
-        .filter(c => JSON.stringify(h.antes[c]) !== JSON.stringify(h.depois[c]))
+        .filter(c => mudou(c, h.antes[c], h.depois[c]))
         .map(c => `${ROTULOS_CAMPO[c]}: ${valorCampo(c, h.antes[c])} → <b>${valorCampo(c, h.depois[c])}</b>`).join('<br>');
     }
     if (h.acao === 'recusou' && h.depois) det = 'Motivo: ' + esc(h.depois.motivo_recusa);
@@ -1061,6 +1068,69 @@ window.excluirAdmin = async (id, btn) => {
   else if (!$('#p-aprovar').hidden) carregarPendentes();
   else if (!$('#p-resumo').hidden) { await carregarResumo(); if (detalheColab) { const b = document.createElement('button'); verLancamentos(detalheColab, b); } }
   if (ehSup()) contarPendentes();
+};
+
+// ===================== AUDITORIA (admin) =====================
+const ROT_ACAO = { criou: 'Lançou', editou: 'Editou', aprovou: 'Aprovou', recusou: 'Recusou', excluiu: 'Excluiu' };
+let cacheAud = [], nomesAud = {};
+
+async function prepararAuditoria() {
+  const { data } = await sb.from('colaboradores').select('id, nome').order('nome');
+  nomesAud = Object.fromEntries((data || []).map(c => [c.id, c.nome]));
+  const sel = $('#au-colab'), atual = sel.value;
+  sel.innerHTML = '<option value="">Todos</option>' + (data || []).map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  sel.value = atual;
+  carregarAuditoria();
+}
+['#au-periodo', '#au-colab', '#au-acao'].forEach(s => $(s).addEventListener('change', carregarAuditoria));
+
+function detalheAud(h) {
+  const reg = h.depois && h.acao !== 'excluiu' ? h.depois : h.antes;
+  let txt = '';
+  if (reg) txt = `HE de ${br(reg.data)} · ${reg.turno} · ${hhmm(reg.inicio)} às ${hhmm(reg.fim)} · ${fmtMin(somaColunas(reg), true)}`;
+  if (h.acao === 'editou' && h.antes && h.depois) {
+    const mud = Object.keys(ROTULOS_CAMPO).filter(c => mudou(c, h.antes[c], h.depois[c]))
+      .map(c => `${ROTULOS_CAMPO[c]}: ${valorCampo(c, h.antes[c])} → ${valorCampo(c, h.depois[c])}`);
+    if (mud.length) txt += `<br>${mud.join(' · ')}`;
+  }
+  if (h.acao === 'recusou' && h.depois?.motivo_recusa) txt += `<br>Motivo: ${esc(h.depois.motivo_recusa)}`;
+  if (h.acao === 'excluiu' && h.depois?.motivo_exclusao) txt += `<br>Motivo da exclusão: ${esc(h.depois.motivo_exclusao)}`;
+  if (reg?.justificativa && (h.acao === 'criou' || h.acao === 'excluiu')) txt += `<br>Justificativa: ${esc(reg.justificativa)}`;
+  return txt;
+}
+
+async function carregarAuditoria() {
+  const p = periodoDe($('#au-periodo').value), box = $('#au-lista');
+  box.innerHTML = '<p class="vazio">Carregando...</p>';
+  const fimMais1 = isoDe(new Date(dataDe(p.fim).getTime() + 86400000));
+  let q = sb.from('he_historico').select('*')
+    .gte('alterado_em', p.ini + 'T00:00:00-03:00').lt('alterado_em', fimMais1 + 'T00:00:00-03:00')
+    .order('alterado_em', { ascending: false }).limit(500);
+  if ($('#au-colab').value) q = q.eq('colaborador_id', $('#au-colab').value);
+  if ($('#au-acao').value) q = q.eq('acao', $('#au-acao').value);
+  const { data, error } = await q;
+  if (error) { box.innerHTML = `<p class="msg erro">${esc(erroAmigavel(error))}</p>`; return; }
+  cacheAud = data;
+  const nome = id => nomesAud[id] || (id ? 'usuário removido' : 'sistema');
+  box.innerHTML = data.length ? `<div class="rolagem"><table class="tab tab-aud">
+    <thead><tr><th>Quando</th><th>Ação</th><th>Colaborador</th><th>Feito por</th><th>Detalhes</th></tr></thead>
+    <tbody>${data.map(h => `<tr>
+      <td>${new Date(h.alterado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+      <td><span class="acao-tag ${h.acao}">${ROT_ACAO[h.acao] || h.acao}</span></td>
+      <td>${esc(nome(h.colaborador_id))}</td>
+      <td>${esc(nome(h.alterado_por))}</td>
+      <td class="det-aud">${detalheAud(h)}</td>
+    </tr>`).join('')}</tbody></table></div>
+    ${data.length === 500 ? '<p class="dica">Mostrando as 500 ações mais recentes. Use os filtros para refinar.</p>' : ''}`
+    : '<p class="vazio">Nenhuma ação encontrada com esses filtros.</p>';
+}
+
+$('#au-csv').onclick = () => {
+  if (!cacheAud.length) return alert('Nada para exportar.');
+  const nome = id => nomesAud[id] || (id ? 'usuário removido' : 'sistema');
+  const limpar = t => String(t).replace(/<br>/g, ' | ').replace(/<[^>]+>/g, '');
+  baixarCSV(`auditoria-he_${$('#au-periodo').value}.csv`, [['Quando', 'Ação', 'Colaborador', 'Feito por', 'Detalhes'],
+    ...cacheAud.map(h => [new Date(h.alterado_em).toLocaleString('pt-BR'), ROT_ACAO[h.acao] || h.acao, nome(h.colaborador_id), nome(h.alterado_por), limpar(detalheAud(h))])]);
 };
 
 // ===================== FERIADOS (admin) =====================

@@ -487,3 +487,15 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
 .tab-equipe .acoes-linha .btn { padding: 7px 9px; }
 .tab-equipe th, .tab-equipe td { padding: 8px 4px; }
 .tab-equipe td:first-child { min-width: 120px; }
+
+/* ---------- Auditoria ---------- */
+.filtros-aud { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 8px; }
+.filtros-aud label { margin: 0; min-width: 170px; }
+.tab-aud td { vertical-align: top; }
+.tab-aud td.det-aud { white-space: normal; min-width: 280px; font-size: 13px; color: var(--suave); line-height: 1.45; }
+.acao-tag { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: #eceef0; color: var(--texto); }
+.acao-tag.criou { background: var(--pri-claro); color: var(--pri-escuro); }
+.acao-tag.editou { background: #eaf0f4; color: #36586b; }
+.acao-tag.aprovou { background: var(--ok-fundo); color: var(--ok); }
+.acao-tag.recusou, .acao-tag.excluiu { background: var(--erro-fundo); color: var(--erro); }
+@media (max-width: 480px) { .filtros-aud label { min-width: 0; flex: 1 1 100%; } .filtros-aud .btn { width: 100%; } }

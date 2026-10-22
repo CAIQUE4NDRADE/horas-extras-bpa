@@ -384,6 +384,9 @@ function limparForm() {
 }
 $('#h-cancelar').onclick = limparForm;
 
+// Horário da HE é opcional (lançamento só de adicional noturno): a validação é feita aqui no JS
+$('#f-he').noValidate = true;
+$('#h-inicio').required = false; $('#h-fim').required = false;
 $('#f-he').onsubmit = async e => {
   e.preventDefault();
   const f = e.target; msg(f, '');
@@ -404,6 +407,7 @@ $('#f-he').onsubmit = async e => {
     if (isNaN(v)) return msg(f, `Valor inválido em ${c.rotulo}. Use hh:mm.`);
     reg[c.campo] = v;
   }
+  if (!reg.data) return msg(f, 'Informe a data (passo 1).');
   if (reg.turno === 'EX' && !(reg.jornada_entrada && reg.jornada_saida)) return msg(f, 'Horário exceção: informe a entrada e a saída do horário avulso (passo 1).');
   if (!$('#h-adic-sim').checked) reg.min_35 = 0;
   const temHE = !!(reg.inicio || reg.fim);

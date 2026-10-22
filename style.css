@@ -475,3 +475,15 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
 .tab-equipe td:first-child { min-width: 130px; }
 .tab-equipe .e-cargo { min-width: 155px; }
 .tab-equipe .e-sup { min-width: 140px; }
+.btn-lixeira { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 8px; border: 1px solid #f0c4c0; background: #fff; color: var(--erro);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.btn-lixeira:hover { background: var(--erro); border-color: var(--erro); color: #fff; }
+.btn-lixeira:disabled { opacity: .5; cursor: default; }
+.tab-equipe .e-turno { min-width: 66px; }
+.tab-equipe .e-cargo { min-width: 145px; }
+.tab-equipe .e-papel { min-width: 116px; }
+.tab-equipe .e-sup { min-width: 130px; }
+.tab-equipe .acoes-linha { gap: 4px; }
+.tab-equipe .acoes-linha .btn { padding: 7px 9px; }
+.tab-equipe th, .tab-equipe td { padding: 8px 4px; }
+.tab-equipe td:first-child { min-width: 120px; }

@@ -773,7 +773,10 @@ async function carregarEquipe() {
       <td><select class="e-sup">${optSup(c.supervisor_id)}</select></td>
       <td><input type="checkbox" class="e-ativo" ${c.ativo ? 'checked' : ''} style="width:auto"></td>
       <td class="acoes-linha"><button class="btn peq" onclick="salvarColab(this)">Salvar</button>
-        ${c.id !== eu.id ? `<button class="btn sec peq" onclick="redefinirSenha('${c.id}', '${esc(c.nome).replace(/'/g, '&#39;')}', this)">Senha</button>` : ''}</td>
+        ${c.id !== eu.id ? `<button class="btn sec peq" onclick="redefinirSenha('${c.id}', '${esc(c.nome).replace(/'/g, '&#39;')}', this)">Senha</button>
+        <button class="btn-lixeira" title="Excluir colaborador" aria-label="Excluir ${esc(c.nome)}" onclick="excluirColab('${c.id}', '${esc(c.nome).replace(/'/g, '&#39;')}', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        </button>` : ''}</td>
     </tr>`).join('')}</tbody></table>`;
 }
 
@@ -802,6 +805,15 @@ window.redefinirSenha = async (id, nome, btn) => {
   carregandoBotao(btn, false);
   if (error) return alert(erroAmigavel(error));
   prompt(`Senha de ${nome} redefinida. Passe esta senha temporária para a pessoa (pode copiar):`, temp);
+};
+
+window.excluirColab = async (id, nome, btn) => {
+  if (!confirm(`Excluir ${nome} do sistema?\n\nA conta e o cadastro serão apagados e a pessoa não conseguirá mais entrar.\nIsso não pode ser desfeito.`)) return;
+  btn.disabled = true;
+  const { error } = await sb.rpc('admin_excluir_colaborador', { p_colab: id });
+  btn.disabled = false;
+  if (error) return alert(erroAmigavel(error));
+  carregarEquipe();
 };
 
 window.salvarColab = async btn => {

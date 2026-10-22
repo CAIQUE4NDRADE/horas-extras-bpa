@@ -455,3 +455,23 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
 .rs-versao { display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
 .rs-credito { color: #dfe6e2; }
 .rs-credito b { color: #fff; font-weight: 600; }
+
+/* ---------- Tabela da Equipe ---------- */
+.tab-equipe td { vertical-align: middle; }
+.tab-equipe td:first-child { white-space: normal; min-width: 150px; font-weight: 600; }
+.tab-equipe select { width: auto; }
+.tab-equipe .e-turno { min-width: 76px; }
+.tab-equipe .e-cargo { min-width: 190px; }
+.tab-equipe .e-papel { min-width: 132px; }
+.tab-equipe .e-sup { min-width: 170px; }
+.tab-equipe input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--pri); }
+.tab-equipe .acoes-linha { justify-content: flex-start; }
+.tab-equipe th, .tab-equipe td { padding: 8px 6px; }
+.tab-equipe .e-cargo { min-width: 165px; max-width: 200px; }
+.tab-equipe .e-papel { min-width: 122px; }
+.tab-equipe .e-sup { min-width: 145px; max-width: 170px; }
+.tab-equipe .acoes-linha { flex-wrap: nowrap; }
+.tab-equipe .acoes-linha .btn { padding: 7px 10px; }
+.tab-equipe td:first-child { min-width: 130px; }
+.tab-equipe .e-cargo { min-width: 155px; }
+.tab-equipe .e-sup { min-width: 140px; }

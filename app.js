@@ -726,6 +726,12 @@ $('#r-csv').onclick = () => {
 };
 
 // ===================== EQUIPE (admin) =====================
+// "Caique Bezerra de Andrade" -> "Caique Andrade"
+function nomeCurto(nome) {
+  const p = String(nome || '').trim().split(/\s+/);
+  return p.length > 2 ? `${p[0]} ${p[p.length - 1]}` : p.join(' ');
+}
+
 async function contarCadastros() {
   const { count } = await sb.from('colaboradores').select('id', { count: 'exact', head: true }).eq('ativo', false);
   const b = $('#badge-cad');
@@ -753,11 +759,11 @@ async function carregarEquipe() {
   contarCadastros();
   const sups = data.filter(c => c.papel !== 'colaborador');
   const optSup = sel => '<option value="">—</option>' + sups.map(s =>
-    `<option value="${s.id}" ${s.id === sel ? 'selected' : ''}>${esc(s.nome)}</option>`).join('');
-  const optPapel = sel => ['colaborador', 'supervisor', 'admin'].map(p =>
-    `<option ${p === sel ? 'selected' : ''}>${p}</option>`).join('');
+    `<option value="${s.id}" ${s.id === sel ? 'selected' : ''}>${esc(nomeCurto(s.nome))}</option>`).join('');
+  const optPapel = sel => [['colaborador', 'Colaborador'], ['supervisor', 'Supervisor'], ['admin', 'Admin']].map(([v, t]) =>
+    `<option value="${v}" ${v === sel ? 'selected' : ''}>${t}</option>`).join('');
 
-  $('#e-lista').innerHTML = `<table class="tab">
+  $('#e-lista').innerHTML = `<table class="tab tab-equipe">
     <thead><tr><th>Nome</th><th>CS</th><th>Turno</th><th>Cargo</th><th>Papel</th><th>Supervisor</th><th>Ativo</th><th></th></tr></thead>
     <tbody>${data.map(c => `<tr data-id="${c.id}">
       <td>${esc(c.nome)}</td>

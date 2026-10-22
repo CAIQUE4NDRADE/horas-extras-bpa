@@ -195,8 +195,13 @@ function montarColunas() {
   $$('.col-pct').forEach(inp => {
     inp.addEventListener('input', () => { mascaraHora(inp); conferir(); });
   });
-  $('#h-motivos').innerHTML = MOTIVOS.map(m => `<button type="button" class="chip">${esc(m)}</button>`).join('');
-  $$('#h-motivos .chip').forEach(b => b.onclick = () => { $('#h-just').value = b.textContent; $('#h-just').focus(); });
+  $('#h-motivos').innerHTML = MOTIVOS.map(m => `<button type="button" class="chip">${esc(m)}</button>`).join('') +
+    '<button type="button" class="chip chip-outro" data-outro="1">Outro</button>';
+  $$('#h-motivos .chip').forEach(b => b.onclick = () => {
+    $$('#h-motivos .chip').forEach(x => x.classList.toggle('ativo', x === b));
+    $('#h-just').value = b.dataset.outro ? '' : b.textContent;
+    $('#h-just').focus();
+  });
 }
 function mascaraHora(inp) {
   const d = inp.value.replace(/\D/g, '').slice(0, 4);
@@ -215,7 +220,14 @@ function mostrarPrevisto() {
 
 // ---------- Percentual simples (chips) ----------
 // Motivos mais comuns: toque preenche a justificativa (dá para editar depois)
-const MOTIVOS = ['Cobertura de falta', 'Descarga de vagões', 'Carregamento', 'Fila de caminhões', 'Fechamento', 'Treinamento', 'Emergência / manutenção'];
+const MOTIVOS = [
+  'Cobertura de falta / férias',
+  'Apoio operacional',
+  'Fechamento',
+  'Comitê SSMA',
+  'Agenda estruturada',
+  'Treinamento'
+];
 let pctEscolhido = null;   // coluna escolhida: 'min_35' | 'min_80' | 'min_80n' | 'min_100' | 'min_100n'
 let modoManual = false;
 
@@ -330,6 +342,7 @@ function limparForm() {
   $('#t-lancar').textContent = 'Lançar hora extra';
   $('#h-cancelar').hidden = true;
   pctEscolhido = null; modoManual = false; marcarChips();
+  $$('#h-motivos .chip').forEach(x => x.classList.remove('ativo'));
   mostrarPrevisto(); conferir(); msg($('#f-he'), '');
 }
 $('#h-cancelar').onclick = limparForm;

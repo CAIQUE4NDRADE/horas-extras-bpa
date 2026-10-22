@@ -191,12 +191,14 @@ function abrirPainel(id) {
 
 // ===================== LANÇAR =====================
 function montarColunas() {
-  $('#h-colunas').innerHTML = COLUNAS.map(c => `
+  $('#h-colunas').innerHTML = COLUNAS_HE.map(c => `
     <label>${c.rotulo}<input id="h-${c.campo}" class="col-pct" inputmode="numeric" placeholder="00:00" maxlength="6"></label>
   `).join('');
   $$('.col-pct').forEach(inp => {
     inp.addEventListener('input', () => { mascaraHora(inp); conferir(); });
   });
+  $('#h-min_35').addEventListener('input', () => { mascaraHora($('#h-min_35')); conferir(); });
+  $('#h-adic-turno').onclick = () => { $('#h-min_35').value = $('#h-adic-turno').dataset.v; conferir(); };
   $('#h-motivos').innerHTML = MOTIVOS.map(m => `<button type="button" class="chip">${esc(m)}</button>`).join('') +
     '<button type="button" class="chip chip-outro" data-outro="1">Outro</button>';
   $$('#h-motivos .chip').forEach(b => b.onclick = () => {
@@ -237,7 +239,7 @@ let modoManual = false;
 const PAR_NOTURNO = { min_80: 'min_80n', min_100: 'min_100n' };
 function rotuloCol(campo) { return COLUNAS.find(c => c.campo === campo)?.rotulo || ''; }
 function calcularDistribuicao(pct, ini, fim, separar) {
-  const out = Object.fromEntries(COLUNAS.map(c => [c.campo, 0]));
+  const out = Object.fromEntries(COLUNAS_HE.map(c => [c.campo, 0]));
   const total = duracao(ini, fim);
   if (!pct || !total) return out;
   const noturna = PAR_NOTURNO[pct];
@@ -249,7 +251,7 @@ function calcularDistribuicao(pct, ini, fim, separar) {
 function distribuir() {
   if (modoManual || !pctEscolhido) return;
   const d = calcularDistribuicao(pctEscolhido, $('#h-inicio').value, $('#h-fim').value, $('#h-sep-noct').checked);
-  COLUNAS.forEach(c => $('#h-' + c.campo).value = fmtMin(d[c.campo]));
+  COLUNAS_HE.forEach(c => $('#h-' + c.campo).value = fmtMin(d[c.campo]));
 }
 function marcarChips() {
   $$('#h-chips .chip').forEach(c => c.classList.toggle('ativo', !modoManual && c.dataset.col === pctEscolhido));
@@ -296,7 +298,13 @@ function conferir() {
   sug.textContent = (dom || fer) ? `📅 ${fer ? 'Feriado (' + fer + ')' : 'Domingo'}: normalmente é 100%.` : '';
 
   // conferência da soma (só no modo manual)
-  const valores = COLUNAS.map(c => toMin($('#h-' + c.campo).value));
+  const valores = COLUNAS_HE.map(c => toMin($('#h-' + c.campo).value));
+  const adic = toMin($('#h-min_35').value);
+  // sugestão: turno noturno inteiro (T3) como adicional
+  const t = TURNOS[$('#h-turno').value], durTurno = duracao(t.entrada, t.saida), noctTurno = minutosNoturnos(t.entrada, t.saida);
+  const bt = $('#h-adic-turno');
+  bt.hidden = !noctTurno;
+  if (noctTurno) { const v = $('#h-turno').value === 'T3' ? durTurno : noctTurno; bt.dataset.v = fmtMin(v, true); bt.textContent = `Usar ${fmtMin(v, true)} (${$('#h-turno').value})`; }
   const box = $('#h-conferencia');
   const soma = valores.some(isNaN) ? NaN : valores.reduce((a, b) => a + b, 0);
   if (!modoManual) { box.className = 'conferencia'; box.textContent = ''; }
@@ -310,7 +318,8 @@ function conferir() {
 
   // resumo final antes de salvar
   const conf = $('#h-confirma');
-  const partes = COLUNAS.filter((c, i) => valores[i] > 0).map((c, i) => `${fmtMin(toMin($('#h-' + c.campo).value), true)} em ${c.rotulo}`);
+  const partes = COLUNAS_HE.filter((c, i) => valores[i] > 0).map(c => `${fmtMin(toMin($('#h-' + c.campo).value), true)} em ${c.rotulo}`);
+  if (adic > 0) partes.push(`adicional noturno ${fmtMin(adic, true)} (fora da HE)`);
   conf.hidden = !(data && total && partes.length);
   if (!conf.hidden) conf.innerHTML = `<b>Confira antes de salvar:</b><br>${diaSemana(data)} ${br(data)} · ${$('#h-turno').value} · ${ini} às ${fim}<br>${partes.join(' + ')}${$('#h-almoco').checked ? ' · almoço corrido' : ''}`;
 }
@@ -371,7 +380,7 @@ $('#f-he').onsubmit = async e => {
   }
   if (!duracao(reg.inicio, reg.fim)) return msg(f, 'Informe o horário em que a HE começou e terminou (passo 2).');
   if (!modoManual && !pctEscolhido) return msg(f, 'Escolha o percentual da hora extra (passo 3).');
-  if (!somaColunas(reg)) return msg(f, 'Preencha as horas em pelo menos uma coluna de percentual.');
+  if (!somaColunas(reg) && !reg.min_35) return msg(f, 'Preencha as horas da HE ou do adicional noturno.');
   if (modoManual && somaColunas(reg) !== duracao(reg.inicio, reg.fim) &&
       !confirm('A soma das colunas não bate com o horário. Salvar mesmo assim?')) return;
   if (!reg.justificativa) return msg(f, 'A justificativa é obrigatória.');
@@ -478,7 +487,7 @@ async function carregarMinhas() {
   if (!ehSup()) {   // colaborador: resumo simples
     const q = st => data.filter(r => r.status === st).length;
     $('#m-totais').innerHTML = `<div class="rm-cards">
-      <div class="rm ok"><span>Aprovadas</span><b>${fmtMin(aprov.reduce((a, r) => a + somaColunas(r), 0), true)}</b><small>${aprov.length} lançamento(s)</small></div>
+      <div class="rm ok"><span>Aprovadas</span><b>${fmtMin(aprov.reduce((a, r) => a + somaColunas(r), 0), true)}</b><small>${aprov.length} lançamento(s)${aprov.some(adicionalNoturno) ? ` · adic. noturno ${fmtMin(aprov.reduce((a, r) => a + adicionalNoturno(r), 0), true)}` : ''}</small></div>
       <div class="rm pend"><span>Pendentes</span><b>${q('pendente')}</b><small>aguardando</small></div>
       <div class="rm rec"><span>Recusadas</span><b>${q('recusado')}</b><small>${q('recusado') ? 'corrija abaixo' : 'nenhuma'}</small></div></div>`;
   } else $('#m-totais').innerHTML = COLUNAS.map(c => {
@@ -553,9 +562,9 @@ window.editar = id => {
   COLUNAS.forEach(c => $('#h-' + c.campo).value = fmtMin(r[c.campo]));
   // descobre se dá para mostrar na escolha simples
   pctEscolhido = null; modoManual = true;
-  for (const pct of COLUNAS.map(c => c.campo)) for (const sep of [true, false]) {
+  for (const pct of COLUNAS_HE.map(c => c.campo)) for (const sep of [true, false]) {
     const d = calcularDistribuicao(pct, r.inicio, r.fim, sep);
-    if (COLUNAS.every(c => (d[c.campo] || 0) === (r[c.campo] || 0))) { pctEscolhido = pct; modoManual = false; $('#h-sep-noct').checked = sep; }
+    if (COLUNAS_HE.every(c => (d[c.campo] || 0) === (r[c.campo] || 0))) { pctEscolhido = pct; modoManual = false; $('#h-sep-noct').checked = sep; }
   }
   if (pctEscolhido && !modoManual) { /* ok */ } else { pctEscolhido = null; modoManual = true; }
   marcarChips();
@@ -695,7 +704,7 @@ async function carregarResumo() {
   if (!cacheResumo.length) { $('#r-tabela').innerHTML = '<p class="vazio">Nenhum colaborador vinculado a você.</p>'; return; }
   $('#r-tabela').innerHTML = `<table class="tab">
     <thead><tr><th>Colaborador</th><th>CS</th>${COLUNAS.map(c => `<th class="n">${c.rotulo}</th>`).join('')}
-      <th class="n">Total</th><th class="n">Pend.</th><th></th></tr></thead>
+      <th class="n">Total HE</th><th class="n">Pend.</th><th></th></tr></thead>
     <tbody>${cacheResumo.map(l => `<tr>
       <td>${esc(l.nome)}</td><td>${esc(l.cs.toUpperCase())}</td>
       ${COLUNAS.map(c => `<td class="n">${fmtMin(l[c.campo])}</td>`).join('')}
@@ -725,7 +734,7 @@ $('#r-csv-det').onclick = async () => {
   if (!data.length) return alert('Nenhum lançamento neste período.');
   data.sort((a, b) => (a.colaborador?.nome || '').localeCompare(b.colaborador?.nome || '') || a.data.localeCompare(b.data));
   const cab = ['Nome', 'CS', 'Cargo', 'Data', 'Dia', 'Turno', 'Início', 'Fim', 'Total pelo horário',
-    ...COLUNAS.map(c => c.rotulo), 'Soma colunas', 'Almoço corrido', 'Justificativa', 'Status', 'Aprovado/recusado por', 'Em', 'Motivo recusa'];
+    ...COLUNAS.map(c => c.rotulo), 'Total HE', 'Almoço corrido', 'Justificativa', 'Status', 'Aprovado/recusado por', 'Em', 'Motivo recusa'];
   const linhas = data.map(r => [r.colaborador?.nome, (r.colaborador?.cs || '').toUpperCase(), r.colaborador?.cargo,
     br(r.data), diaSemana(r.data), r.turno, hhmm(r.inicio), hhmm(r.fim), fmtMin(duracao(r.inicio, r.fim), true),
     ...COLUNAS.map(c => fmtMin(r[c.campo], true)), fmtMin(somaColunas(r), true), r.almoco_corrido ? 'Sim' : '', r.justificativa, r.status,
@@ -735,7 +744,7 @@ $('#r-csv-det').onclick = async () => {
 
 $('#r-csv').onclick = () => {
   if (!cacheResumo.length) return;
-  const cab = ['Nome', 'CS', 'Cargo', ...COLUNAS.map(c => c.rotulo), 'Total', 'Pendentes'];
+  const cab = ['Nome', 'CS', 'Cargo', ...COLUNAS.map(c => c.rotulo), 'Total HE', 'Pendentes'];
   const linhas = cacheResumo.map(l => [l.nome, l.cs.toUpperCase(), l.cargo,
     ...COLUNAS.map(c => fmtMin(l[c.campo], true)), fmtMin(l.total, true), l.pendentes]);
   const csv = '﻿' + [cab, ...linhas].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
@@ -970,7 +979,8 @@ async function carregarPainel() {
   const porCargo = [...GRUPOS_CARGO, 'OUTROS']
     .map(g => ({ rotulo: g.charAt(0) + g.slice(1).toLowerCase(), valor: soma(hes.filter(r => grupoCargo(r.colaborador?.cargo) === g)) }))
     .filter(x => x.valor || x.rotulo !== 'Outros');
-  const porPct = COLUNAS.map(c => ({ rotulo: c.rotulo, valor: hes.reduce((a, r) => a + (r[c.campo] || 0), 0) }));
+  const totalAdic = hes.reduce((a, r) => a + adicionalNoturno(r), 0);
+  const porPct = COLUNAS_HE.map(c => ({ rotulo: c.rotulo, valor: hes.reduce((a, r) => a + (r[c.campo] || 0), 0) }));
   box.innerHTML = `
     <div class="kpis">
       <div class="kpi destaque"><span>Total de HE no período</span><b>${fmtMin(total, true)}</b>${comp}</div>
@@ -986,6 +996,7 @@ async function carregarPainel() {
       <button class="kpi clicavel ${atrasadas.length ? 'alerta' : ''}" ${atrasadas.length ? '' : 'disabled'} onclick="abrirPainel('p-aprovar')">
         <span>Pendentes há mais de 3 dias</span><b>${atrasadas.length}</b><small>${atrasadas.length ? 'toque para ir aprovar' : 'nada esquecido 👍'}</small>
       </button>
+      <div class="kpi adic"><span>Adicional noturno 35%</span><b>${fmtMin(totalAdic, true)}</b><small>separado · não entra no total de HE</small></div>
     </div>
 
     <div id="pn-pessoas" class="card lista-pessoas" hidden>

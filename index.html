@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · Base de Paulínia</title>
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4d6d5d">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=21"></script>
-<script src="comum.js?v=21"></script>
+<script src="config.js?v=22"></script>
+<script src="comum.js?v=22"></script>
 </head>
 <body>
 
@@ -154,9 +154,8 @@
         <div id="h-avisos" class="avisos"></div>
 
         <div class="passo">
-          <div class="passo-tit"><span class="num">3</span> Qual o percentual?</div>
-          <div class="chips grandes cinco" id="h-chips">
-            <button type="button" class="chip c35" data-col="min_35">35%</button>
+          <div class="passo-tit"><span class="num">3</span> Qual o percentual da hora extra?</div>
+          <div class="chips grandes quatro" id="h-chips">
             <button type="button" class="chip" data-col="min_80">80%</button>
             <button type="button" class="chip" data-col="min_80n">80% noturna</button>
             <button type="button" class="chip" data-col="min_100">100%</button>
@@ -170,6 +169,15 @@
             <div class="grade g5" id="h-colunas"></div>
           </div>
           <div id="h-conferencia" class="conferencia"></div>
+
+          <div class="adicional-box">
+            <label for="h-min_35"><b>Adicional noturno 35%</b> <small>(opcional · não conta como hora extra)</small></label>
+            <div class="linha-adic">
+              <input id="h-min_35" class="col-adic" inputmode="numeric" placeholder="00:00" maxlength="6">
+              <button type="button" class="chip" id="h-adic-turno" hidden></button>
+            </div>
+            <p class="dica">Horas noturnas da jornada, preenchidas separado da HE. Ex.: T3 entrou 23:50 e saiu 09:50 → HE 07:38 às 09:50 e adicional noturno 07:48.</p>
+          </div>
         </div>
 
         <div class="passo">
@@ -321,6 +329,6 @@
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
 </button>
 
-<script src="app.js?v=21"></script>
+<script src="app.js?v=22"></script>
 </body>
 </html>

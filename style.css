@@ -499,3 +499,21 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
 .acao-tag.aprovou { background: var(--ok-fundo); color: var(--ok); }
 .acao-tag.recusou, .acao-tag.excluiu { background: var(--erro-fundo); color: var(--erro); }
 @media (max-width: 480px) { .filtros-aud label { min-width: 0; flex: 1 1 100%; } .filtros-aud .btn { width: 100%; } }
+
+/* ---------- Adicional noturno separado ---------- */
+.kpis.dois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kpi.adic { background: #eef0f6; border-color: #cfd4e3; }
+.kpi.adic b { color: var(--azul-escuro); }
+.chips.grandes.quatro { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.chips.grandes.quatro .chip { font-size: 17px; padding: 8px 6px; line-height: 1.15; }
+.adicional-box { margin-top: 6px; padding: 12px; border: 1px dashed #b9bcc0; border-radius: 10px; background: #f7f8fa; }
+.adicional-box label { margin: 0 0 6px; color: var(--texto); font-size: 14px; }
+.adicional-box small { color: var(--suave); font-weight: 400; }
+.adicional-box .dica { margin: 8px 0 0; font-size: 12.5px; }
+.linha-adic { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.linha-adic input { width: 120px; margin: 0; }
+@media (max-width: 700px) {
+  .chips.grandes.quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpis.dois { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpis.dois .kpi.adic { grid-column: 1 / -1; }
+}

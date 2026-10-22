@@ -10,7 +10,7 @@ const TURNOS = {
 };
 
 const COLUNAS = [
-  { campo: 'min_35',   rotulo: '35%' },
+  { campo: 'min_35',   rotulo: 'Adic. noturno 35%', adicional: true },
   { campo: 'min_80',   rotulo: '80%' },
   { campo: 'min_80n',  rotulo: '80% noturna' },
   { campo: 'min_100',  rotulo: '100%' },
@@ -50,7 +50,10 @@ function duracao(ini, fim) {                                   // atravessa meia
   if (isNaN(a) || isNaN(b) || !ini || !fim) return 0;
   return ((b - a) % 1440 + 1440) % 1440;
 }
-function somaColunas(r) { return COLUNAS.reduce((s, c) => s + (r[c.campo] || 0), 0); }
+// Colunas de HORA EXTRA (o adicional noturno 35% fica separado e não conta como HE)
+const COLUNAS_HE = COLUNAS.filter(c => !c.adicional);
+function somaColunas(r) { return COLUNAS_HE.reduce((s, c) => s + (r[c.campo] || 0), 0); }
+function adicionalNoturno(r) { return r.min_35 || 0; }
 
 // Datas sem fuso: trabalha sempre com "AAAA-MM-DD"
 function isoDe(d) {

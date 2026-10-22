@@ -525,3 +525,5 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
 @media (max-width: 860px) { .graficos.tres { grid-template-columns: 1fr; } }
 .tag-cobertura { display: inline-block; font-size: 12px; font-weight: 600; color: #36586b; background: #eaf0f4; border-radius: 999px; padding: 2px 9px; }
 #a-filtro { margin: 0; width: auto; }
+.tab-equipe tr[hidden] { display: none !important; }
+#e-filtros { margin-top: 4px; }

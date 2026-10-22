@@ -848,7 +848,7 @@ async function carregarEquipe() {
 
   $('#e-lista').innerHTML = `<table class="tab tab-equipe">
     <thead><tr><th>Nome</th><th>CS</th><th>Turno</th><th>Cargo</th><th>Papel</th><th>Supervisor</th><th>Ativo</th><th></th></tr></thead>
-    <tbody>${data.map(c => `<tr data-id="${c.id}">
+    <tbody>${data.map(c => `<tr data-id="${c.id}" data-busca="${esc((c.nome + ' ' + c.cs).toLowerCase())}" data-turno="${c.turno}" data-cargo="${grupoCargo(c.cargo)}" data-papel="${c.papel}" data-sup="${c.supervisor_id || ''}" data-ativo="${c.ativo ? 1 : 0}">
       <td>${esc(c.nome)}</td>
       <td>${esc(c.cs.toUpperCase())}</td><td><select class="e-turno">${Object.keys(TURNOS).map(t => `<option ${t === c.turno ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
       <td><select class="e-cargo">${opcoesCargo(c.cargo)}</select></td>
@@ -861,7 +861,38 @@ async function carregarEquipe() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
         </button>` : ''}</td>
     </tr>`).join('')}</tbody></table>`;
+  // filtros: supervisor e cargo vêm da própria lista (mantém o que estava escolhido)
+  const fs = $('#ef-sup'), vs = fs.value;
+  fs.innerHTML = '<option value="">Todos</option><option value="-">Sem supervisor</option>' +
+    sups.map(s => `<option value="${s.id}">${esc(nomeCurto(s.nome))}</option>`).join('');
+  fs.value = vs;
+  const fc = $('#ef-cargo'), vc = fc.value;
+  fc.innerHTML = '<option value="">Todos</option>' + [...GRUPOS_CARGO, 'OUTROS']
+    .filter(g => data.some(c => grupoCargo(c.cargo) === g))
+    .map(g => `<option value="${g}">${g.charAt(0) + g.slice(1).toLowerCase()}</option>`).join('');
+  fc.value = vc;
+  filtrarEquipe();
 }
+
+function filtrarEquipe() {
+  const busca = $('#ef-busca').value.trim().toLowerCase().replace(/^cs\s*/, '');
+  const f = { turno: $('#ef-turno').value, cargo: $('#ef-cargo').value, papel: $('#ef-papel').value, sup: $('#ef-sup').value, ativo: $('#ef-ativo').value };
+  const linhas = $$('#e-lista tbody tr');
+  let vis = 0;
+  linhas.forEach(tr => {
+    const d = tr.dataset;
+    const ok = (!busca || d.busca.includes(busca)) &&
+      (!f.turno || d.turno === f.turno) && (!f.cargo || d.cargo === f.cargo) &&
+      (!f.papel || d.papel === f.papel) && (!f.ativo || d.ativo === f.ativo) &&
+      (!f.sup || (f.sup === '-' ? !d.sup : d.sup === f.sup));
+    tr.hidden = !ok; if (ok) vis++;
+  });
+  const filtrando = busca || Object.values(f).some(Boolean);
+  $('#ef-contagem').textContent = filtrando ? `Mostrando ${vis} de ${linhas.length} colaboradores.` : `${linhas.length} colaboradores.`;
+}
+$('#ef-busca').addEventListener('input', filtrarEquipe);
+['#ef-turno', '#ef-cargo', '#ef-papel', '#ef-sup', '#ef-ativo'].forEach(s => $(s).addEventListener('change', filtrarEquipe));
+$('#ef-limpar').onclick = () => { $$('#e-filtros input, #e-filtros select').forEach(x => x.value = ''); filtrarEquipe(); };
 
 window.liberarCadastro = async (id, liberar, btn) => {
   if (!liberar) {

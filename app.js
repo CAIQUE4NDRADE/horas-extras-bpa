@@ -509,6 +509,7 @@ function itemHTML(r, meu, opc = {}) {
   const noTurno = !r.almoco_corrido && minutosDentroDoTurno(r.inicio, r.fim, r.turno) > TOLERANCIA_TURNO;
   const travado = periodoFechado(r.data) && !ehAdmin();
   const nome = meu ? '' : `<b>${esc(r.colaborador?.nome)}</b> (${esc((r.colaborador?.cs || '').toUpperCase())}) · `;
+  const deOutraEquipe = !meu && ehSup() && r.colaborador?.supervisor_id && r.colaborador.supervisor_id !== eu.id;
   const rotStatus = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado' }[r.status];
   let extra = '';
   if (r.status === 'aprovado' && r.aprovador) extra = `<div class="det">Aprovado por ${esc(r.aprovador.nome)} em ${new Date(r.aprovado_em).toLocaleDateString('pt-BR')}</div>`;
@@ -537,6 +538,7 @@ function itemHTML(r, meu, opc = {}) {
     <span class="st ${r.status}">${rotStatus}</span>
     <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${noTurno ? ` · <span class="alerta">⚠ dentro do horário do ${r.turno}</span>` : ''}${r.almoco_corrido ? ` · <span class="info-t">🍽 Almoço corrido</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
     <div class="det">${esc(r.justificativa)}</div>
+    ${deOutraEquipe ? `<div class="det"><span class="tag-cobertura">Equipe de outro supervisor · aprovação por cobertura</span></div>` : ''}
     ${extra}${botoes}
   </div>`;
 }
@@ -584,6 +586,7 @@ window.excluir = async (id, btn) => {
 
 // ===================== APROVAR =====================
 $('#a-atualizar').onclick = carregarPendentes;
+$('#a-filtro').onchange = carregarPendentes;
 
 async function contarPendentes() {
   const { count } = await sb.from('horas_extras').select('id', { count: 'exact', head: true })
@@ -595,11 +598,13 @@ async function contarPendentes() {
 async function carregarPendentes() {
   $('#a-lista').innerHTML = '<p class="vazio">Carregando...</p>';
   const { data, error } = await sb.from('horas_extras')
-    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo)')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo, supervisor_id)')
     .eq('status', 'pendente').neq('colaborador_id', eu.id).order('data');
   if (error) { $('#a-lista').innerHTML = `<p class="msg erro">${esc(error.message)}</p>`; return; }
-  $('#a-lista').innerHTML = data.length ? data.map(r => itemHTML(r, false)).join('')
-    : '<p class="vazio">Nada pendente. 👍</p>';
+  const so = $('#a-filtro').value === 'minha';
+  const lista = so ? data.filter(r => r.colaborador?.supervisor_id === eu.id) : data;
+  $('#a-lista').innerHTML = lista.length ? lista.map(r => itemHTML(r, false)).join('')
+    : `<p class="vazio">${so && data.length ? `Nada pendente na sua equipe. Há ${data.length} pendente(s) de outras equipes em "Todas as equipes".` : 'Nada pendente. 👍'}</p>`;
   $('#a-marcar').hidden = !data.length;
   atualizarLote();
   contarPendentes();
@@ -684,7 +689,7 @@ async function carregarResumo() {
   mostrarStatusPeriodo(p.chave);
 
   let q = sb.from('colaboradores').select('id, nome, cs, cargo').eq('ativo', true).order('nome');
-  if (!ehAdmin()) q = q.eq('supervisor_id', eu.id);
+  // supervisores e admin veem todos (um supervisor cobre o outro)
   const [{ data: colabs, error: e1 }, { data: hes, error: e2 }] = await Promise.all([
     q,
     sb.from('horas_extras').select('colaborador_id, status, min_35, min_80, min_80n, min_100, min_100n')
@@ -894,7 +899,7 @@ function graficoDias(p, hes) {
 
 async function pendenciasRapidas() {
   let q = sb.from('horas_extras')
-    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo)')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo, supervisor_id)')
     .eq('status', 'pendente').neq('colaborador_id', eu.id).order('atualizado_em').limit(5);
   const { data } = await q;
   return data || [];
@@ -1043,7 +1048,7 @@ async function carregarPainel() {
       </div>
     </div>
     `}
-    <p class="dica">Considera HE aprovadas e pendentes do período ${rotuloPeriodo(chave)} (recusadas ficam de fora)${ehAdmin() ? '' : ', só da sua equipe'}.</p>`;
+    <p class="dica">Considera HE aprovadas e pendentes do período ${rotuloPeriodo(chave)} (recusadas ficam de fora)${ehAdmin() ? '' : '; os seus próprios lançamentos não entram'}.</p>`;
 
   const bp = $('#pn-btn-pessoas');
   if (bp) bp.onclick = () => { const l = $('#pn-pessoas'); l.hidden = !l.hidden; };

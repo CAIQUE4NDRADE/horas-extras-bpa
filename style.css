@@ -520,3 +520,5 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
 /* 4 gráficos: grade 2x2 no computador */
 .graficos.tres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 860px) { .graficos.tres { grid-template-columns: 1fr; } }
+.tag-cobertura { display: inline-block; font-size: 12px; font-weight: 600; color: #36586b; background: #eaf0f4; border-radius: 999px; padding: 2px 9px; }
+#a-filtro { margin: 0; width: auto; }

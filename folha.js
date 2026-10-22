@@ -35,7 +35,6 @@ async function carregar() {
   let colabs;
   if (params.get('todos')) {
     let q = sb.from('colaboradores').select('id, nome, cs, cargo, supervisor_id').eq('ativo', true).order('nome');
-    if (eu?.papel !== 'admin') q = q.eq('supervisor_id', session.user.id);
     const { data, error } = await q;
     if (error) return status('Erro: ' + error.message);
     colabs = data;

@@ -517,3 +517,6 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
   .kpis.dois { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kpis.dois .kpi.adic { grid-column: 1 / -1; }
 }
+/* 4 gráficos: grade 2x2 no computador */
+.graficos.tres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 860px) { .graficos.tres { grid-template-columns: 1fr; } }

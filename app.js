@@ -970,12 +970,14 @@ async function carregarPainel() {
   // top 5
   const porColab = {};
   hes.forEach(r => { const k = r.colaborador_id; porColab[k] = porColab[k] || { rotulo: r.colaborador?.nome || '—', valor: 0 }; porColab[k].valor += somaColunas(r); });
-  const top5 = Object.values(porColab).sort((a, b) => b.valor - a.valor).slice(0, 5);
+  const top5 = Object.values(porColab).filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
 
   // por turno
   const turnos = Object.keys(TURNOS).map(t => ({ rotulo: `${t} (${TURNOS[t].entrada})`, valor: soma(hes.filter(r => r.turno === t)) }));
 
-  const vazio = !hes.length;
+  const vazio = total === 0;   // sem horas de HE (adicional noturno sozinho não conta)
+  const adicTxt = arr => { const a = arr.reduce((x, r) => x + adicionalNoturno(r), 0); return a ? ` · adic. noturno ${fmtMin(a, true)}` : ''; };
+  const minhasPend = pend.filter(r => r.colaborador_id === eu.id).length;
   const porCargo = [...GRUPOS_CARGO, 'OUTROS']
     .map(g => ({ rotulo: g.charAt(0) + g.slice(1).toLowerCase(), valor: soma(hes.filter(r => grupoCargo(r.colaborador?.cargo) === g)) }))
     .filter(x => x.valor || x.rotulo !== 'Outros');
@@ -984,8 +986,8 @@ async function carregarPainel() {
   box.innerHTML = `
     <div class="kpis">
       <div class="kpi destaque"><span>Total de HE no período</span><b>${fmtMin(total, true)}</b>${comp}</div>
-      <div class="kpi pend"><span>Aguardando aprovação</span><b>${fmtMin(soma(pend), true)}</b><small>${pend.length} lançamento(s)</small></div>
-      <div class="kpi ok"><span>Aprovadas</span><b>${fmtMin(soma(aprov), true)}</b><small>${aprov.length} lançamento(s)</small></div>
+      <div class="kpi pend"><span>Aguardando aprovação</span><b>${fmtMin(soma(pend), true)}</b><small>${pend.length} lançamento(s)${adicTxt(pend)}</small></div>
+      <div class="kpi ok"><span>Aprovadas</span><b>${fmtMin(soma(aprov), true)}</b><small>${aprov.length} lançamento(s)${adicTxt(aprov)}</small></div>
       <div class="kpi"><span>${fech.t}</span><b>${fech.v}</b><small>${fech.s}</small></div>
     </div>
 
@@ -1011,33 +1013,36 @@ async function carregarPainel() {
 
     <div class="card bloco">
       <h3>HE por dia <small>(passe o dedo ou o mouse nas colunas para ver as horas)</small></h3>
-      ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : graficoDias(p, hes)}
+      ${vazio ? '<p class="vazio">Nenhuma hora extra no período.</p>' : graficoDias(p, hes)}
     </div>
 
     <div class="card bloco">
       <div class="cab-bloco"><h3>Pendências rápidas <small>(as mais antigas primeiro)</small></h3>
         <button class="btn link peq" onclick="abrirPainel('p-aprovar')">Ver todas</button></div>
-      ${rapidas.length ? rapidas.map(r => itemHTML(r, false, { semLote: true })).join('') : '<p class="vazio">Nada pendente. 👍</p>'}
+      ${rapidas.length ? rapidas.map(r => itemHTML(r, false, { semLote: true })).join('')
+        : `<p class="vazio">Nada pendente para você aprovar. 👍${minhasPend ? `<br><small>Você tem ${minhasPend} lançamento(s) seu(s) pendente(s): quem aprova é o seu supervisor.</small>` : ''}</p>`}
     </div>
 
+    ${vazio ? '' : `
     <div class="graficos tres">
       <div class="card">
         <h3>Quem mais fez HE <small>(top 5)</small></h3>
-        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(top5, 'var(--verde)')}
+        ${vazio ? '<p class="vazio">Nenhuma hora extra no período.</p>' : barras(top5, 'var(--verde)')}
       </div>
       <div class="card">
         <h3>HE por turno</h3>
-        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(turnos, 'var(--azul)')}
+        ${vazio ? '<p class="vazio">Nenhuma hora extra no período.</p>' : barras(turnos, 'var(--azul)')}
       </div>
       <div class="card">
         <h3>HE por cargo</h3>
-        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(porCargo, 'var(--roxo)')}
+        ${vazio ? '<p class="vazio">Nenhuma hora extra no período.</p>' : barras(porCargo, 'var(--roxo)')}
       </div>
       <div class="card">
         <h3>Por percentual</h3>
-        ${vazio ? '<p class="vazio">Sem lançamentos no período.</p>' : barras(porPct, 'var(--azul-escuro)')}
+        ${vazio ? '<p class="vazio">Nenhuma hora extra no período.</p>' : barras(porPct, 'var(--azul-escuro)')}
       </div>
     </div>
+    `}
     <p class="dica">Considera HE aprovadas e pendentes do período ${rotuloPeriodo(chave)} (recusadas ficam de fora)${ehAdmin() ? '' : ', só da sua equipe'}.</p>`;
 
   const bp = $('#pn-btn-pessoas');

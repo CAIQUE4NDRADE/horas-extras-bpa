@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · Base de Paulínia</title>
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4d6d5d">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=29"></script>
-<script src="comum.js?v=29"></script>
+<script src="config.js?v=30"></script>
+<script src="comum.js?v=30"></script>
 </head>
 <body>
 
@@ -154,9 +154,10 @@
         <div class="passo">
           <div class="passo-tit"><span class="num">2</span> Horário da hora extra</div>
           <div class="grade g2">
-            <label>Começou<input id="h-inicio" type="time" required></label>
-            <label>Terminou<input id="h-fim" type="time" required></label>
+            <label>Começou<input id="h-inicio" type="time"></label>
+            <label>Terminou<input id="h-fim" type="time"></label>
           </div>
+          <p class="dica">Foi só adicional noturno, sem hora extra? Deixe em branco e escolha o 35% no passo 3.</p>
           <div id="h-total" class="total-he" hidden></div>
           <label class="chk-linha" id="h-almoco-box" hidden><input id="h-almoco" type="checkbox"> <span><b>Almoço corrido</b>: trabalhei no horário de refeição</span></label>
         </div>
@@ -345,6 +346,6 @@
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
 </button>
 
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>

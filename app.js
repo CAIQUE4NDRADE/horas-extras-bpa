@@ -320,7 +320,6 @@ function conferir() {
 
   // conferência da soma (só no modo manual)
   const valores = COLUNAS_HE.map(c => toMin($('#h-' + c.campo).value));
-  const adic = toMin($('#h-min_35').value);
   // adicional noturno: calculado pela jornada quando marcado (pode ajustar à mão)
   const jor = jornadaForm(), sim = $('#h-adic-sim').checked;
   const calcAdic = jor ? adicionalDaJornada($('#h-turno').value, jor.ent, jor.sai, $('#h-rini').value, $('#h-rfim').value) : 0;
@@ -344,9 +343,10 @@ function conferir() {
   // resumo final antes de salvar
   const conf = $('#h-confirma');
   const partes = COLUNAS_HE.filter((c, i) => valores[i] > 0).map(c => `${fmtMin(toMin($('#h-' + c.campo).value), true)} em ${c.rotulo}`);
+  const adic = $('#h-adic-sim').checked ? toMin($('#h-min_35').value) : 0;
   if (adic > 0) partes.push(`adicional noturno ${fmtMin(adic, true)} (fora da HE)`);
-  conf.hidden = !(data && total && partes.length);
-  if (!conf.hidden) conf.innerHTML = `<b>Confira antes de salvar:</b><br>${diaSemana(data)} ${br(data)} · ${$('#h-turno').value} · ${ini} às ${fim}<br>${partes.join(' + ')}${$('#h-almoco').checked ? ' · almoço corrido' : ''}`;
+  conf.hidden = !(data && (total || (!ini && !fim && adic > 0)) && partes.length);
+  if (!conf.hidden) conf.innerHTML = `<b>Confira antes de salvar:</b><br>${diaSemana(data)} ${br(data)} · ${rotuloTurno($('#h-turno').value)} · ${total ? `${ini} às ${fim}` : 'só adicional noturno, sem hora extra'}<br>${partes.join(' + ')}${$('#h-almoco').checked ? ' · almoço corrido' : ''}`;
 }
 
 // Avisos que ajudam o operador a escolher a coluna (não bloqueiam, exceto período fechado)
@@ -406,10 +406,17 @@ $('#f-he').onsubmit = async e => {
   }
   if (reg.turno === 'EX' && !(reg.jornada_entrada && reg.jornada_saida)) return msg(f, 'Horário exceção: informe a entrada e a saída do horário avulso (passo 1).');
   if (!$('#h-adic-sim').checked) reg.min_35 = 0;
-  if (!duracao(reg.inicio, reg.fim)) return msg(f, 'Informe o horário em que a HE começou e terminou (passo 2).');
-  if (!modoManual && !pctEscolhido) return msg(f, 'Escolha o percentual da hora extra (passo 3).');
+  const temHE = !!(reg.inicio || reg.fim);
+  if (!temHE && reg.min_35) {
+    // só adicional noturno, sem hora extra
+    reg.inicio = null; reg.fim = null; reg.almoco_corrido = false;
+    COLUNAS_HE.forEach(c => reg[c.campo] = 0);
+  } else {
+    if (!duracao(reg.inicio, reg.fim)) return msg(f, 'Informe o horário em que a HE começou e terminou (passo 2). Se foi só adicional noturno, deixe o passo 2 em branco e escolha o 35%.');
+    if (!modoManual && !pctEscolhido) return msg(f, 'Escolha o percentual da hora extra (passo 3). Se foi só adicional noturno, apague o horário do passo 2.');
+  }
   if (!somaColunas(reg) && !reg.min_35) return msg(f, 'Preencha as horas da HE ou do adicional noturno.');
-  if (modoManual && somaColunas(reg) !== totalHE(reg.inicio, reg.fim, reg.refeicao_inicio, reg.refeicao_fim) &&
+  if (temHE && modoManual && somaColunas(reg) !== totalHE(reg.inicio, reg.fim, reg.refeicao_inicio, reg.refeicao_fim) &&
       !confirm('A soma das colunas não bate com o horário. Salvar mesmo assim?')) return;
   if (!reg.justificativa) return msg(f, 'A justificativa é obrigatória.');
   if (periodoFechado(reg.data) && !ehAdmin()) return msg(f, 'Esse período já está fechado. Fale com o administrador.');
@@ -566,7 +573,7 @@ function itemHTML(r, meu, opc = {}) {
   botoes += `<div class="historico" id="hist-${r.id}" hidden></div>`;
 
   return `<div class="item">
-    <div class="lin1">${nome}${br(r.data)} ${diaSemana(r.data)} · ${rotuloTurno(r.turno)}${r.turno === 'EX' && r.jornada_entrada ? ` (${hhmm(r.jornada_entrada)}–${hhmm(r.jornada_saida)})` : ''} · ${hhmm(r.inicio)} às ${hhmm(r.fim)}</div>
+    <div class="lin1">${nome}${br(r.data)} ${diaSemana(r.data)} · ${rotuloTurno(r.turno)}${r.turno === 'EX' && r.jornada_entrada ? ` (${hhmm(r.jornada_entrada)}–${hhmm(r.jornada_saida)})` : ''} · ${r.inicio ? `${hhmm(r.inicio)} às ${hhmm(r.fim)}` : 'só adicional noturno'}</div>
     <span class="st ${r.status}">${rotStatus}</span>
     <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${noTurno ? ` · <span class="alerta">⚠ dentro do horário do ${r.turno}</span>` : ''}${r.almoco_corrido ? ` · <span class="info-t">🍽 Almoço corrido</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
     <div class="det">${esc(r.justificativa)}</div>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testes dos cálculos · Horas Extras</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<script src="config.js?v=27"></script>
+<script src="comum.js?v=27"></script>
+<script src="testes.js?v=27"></script>
+<style>
+  :root { --verde: #4d6d5d; --ok: #3f6b2a; --ok-f: #e9f2e2; --erro: #b8231a; --erro-f: #fde8e6; --suave: #55585c; --linha: #dcdee0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f2f3f4; color: #1d1d1b; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: linear-gradient(100deg, #3a5447, #4d6d5d 50%, #60903e); color: #fff; padding: 16px 20px; }
+  header h1 { margin: 0; font-size: 19px; }
+  header p { margin: 4px 0 0; opacity: .85; font-size: 13.5px; }
+  main { max-width: 900px; margin: 0 auto; padding: 16px; }
+  .resumo { border-radius: 12px; padding: 16px 18px; font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+  .resumo.ok { background: var(--ok-f); color: var(--ok); }
+  .resumo.erro { background: var(--erro-f); color: var(--erro); }
+  .resumo small { display: block; font-size: 13.5px; font-weight: 400; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid var(--linha); }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--linha); text-align: left; vertical-align: top; }
+  tr.grupo td { background: #e8efe9; color: #3a5447; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: .05em; }
+  td.st { width: 34px; font-size: 17px; text-align: center; }
+  td.v { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; color: var(--suave); }
+  tr.falhou td { background: var(--erro-f); }
+  tr.falhou td.v { color: var(--erro); font-weight: 700; }
+  .rolagem { overflow-x: auto; }
+  p.dica { color: var(--suave); font-size: 13.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Testes dos cálculos</h1>
+  <p>Confere as regras de horário, noturno, turno e período. Abra esta página depois de cada atualização do site.</p>
+</header>
+<main>
+  <div id="resumo" class="resumo">Rodando...</div>
+  <div class="rolagem"><table>
+    <thead><tr><th></th><th>Cenário</th><th>Calculado</th><th>Esperado</th></tr></thead>
+    <tbody id="linhas"></tbody>
+  </table></div>
+  <p class="dica">Esta página não acessa o banco de dados: ela só testa as fórmulas do site com exemplos conhecidos, inclusive os exemplos impressos na folha da Raízen.</p>
+</main>
+<script>
+  const r = rodarTestes();
+  const fmt = v => typeof v === 'string' ? v : JSON.stringify(v);
+  document.getElementById('resumo').className = 'resumo ' + (r.falhas ? 'erro' : 'ok');
+  document.getElementById('resumo').innerHTML = r.falhas
+    ? `✗ ${r.falhas} teste(s) falharam<small>${r.ok} passaram. Não use a versão nova antes de corrigir.</small>`
+    : `✓ Todos os ${r.ok} testes passaram<small>As fórmulas estão calculando como esperado.</small>`;
+  document.getElementById('linhas').innerHTML = r.linhas.map(l => l.titulo
+    ? `<tr class="grupo"><td colspan="4">${esc(l.titulo)}</td></tr>`
+    : `<tr class="${l.passou ? '' : 'falhou'}"><td class="st">${l.passou ? '✅' : '❌'}</td><td>${esc(l.desc)}</td><td class="v">${esc(fmt(l.calc))}</td><td class="v">${esc(fmt(l.esp))}</td></tr>`).join('');
+</script>
+</body>
+</html>

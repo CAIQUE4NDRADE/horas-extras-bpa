@@ -154,3 +154,21 @@ function opcoesCargo(selecionado) {
   return extra + Object.entries(CARGOS).map(([g, lista]) => `<optgroup label="${g}">` +
     lista.map(c => `<option ${c === selecionado ? 'selected' : ''}>${c}</option>`).join('') + '</optgroup>').join('');
 }
+
+// Cargo no topo da hierarquia: aprova a própria HE (fica registrado na auditoria)
+const CARGOS_AUTOAPROVA = ['SUPERVISOR 3'];
+
+// Turno "EX" = horário exceção (avulso): entrada e saída digitadas na hora
+function rotuloTurno(t) { return t === 'EX' ? 'Exceção' : t; }
+// Jornada usada nos cálculos: a informada (exceção / jornada diferente) ou a do turno
+function jornadaDe(turno, ent, sai) {
+  if (ent && sai) return { ent: hhmm(ent), sai: hhmm(sai) };
+  const t = TURNOS[turno];
+  return t ? { ent: t.entrada, sai: t.saida } : null;
+}
+// Adicional noturno 35%: das 22:00 às 05:00. No T3, conta a jornada inteira (23:50 às 07:38).
+function adicionalDaJornada(turno, ent, sai) {
+  const j = jornadaDe(turno, ent, sai);
+  if (!j) return 0;
+  return turno === 'T3' ? duracao(j.ent, j.sai) : minutosNoturnos(j.ent, j.sai);
+}

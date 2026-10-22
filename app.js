@@ -140,6 +140,7 @@ $('#btn-sair').onclick = async () => {
 // ===================== APP =====================
 const ehSup = () => eu && (eu.papel === 'supervisor' || eu.papel === 'admin');
 const ehAdmin = () => eu && eu.papel === 'admin';
+const autoAprova = () => eu && ehSup() && CARGOS_AUTOAPROVA.includes(eu.cargo);
 
 function montarApp() {
   document.body.classList.toggle('colab', !ehSup());
@@ -197,8 +198,13 @@ function montarColunas() {
   $$('.col-pct').forEach(inp => {
     inp.addEventListener('input', () => { mascaraHora(inp); conferir(); });
   });
-  $('#h-min_35').addEventListener('input', () => { mascaraHora($('#h-min_35')); conferir(); });
-  $('#h-adic-turno').onclick = () => { $('#h-min_35').value = $('#h-adic-turno').dataset.v; conferir(); };
+  $('#h-min_35').addEventListener('input', () => { mascaraHora($('#h-min_35')); $('#h-min_35').dataset.manual = '1'; conferir(); });
+  $('#h-adic-sim').addEventListener('change', () => {
+    $('#h-min_35').dataset.manual = '';
+    if (!$('#h-adic-sim').checked) $('#h-min_35').value = '';
+    conferir();
+  });
+  ['#h-ex-ent', '#h-ex-sai', '#h-jent', '#h-jsai'].forEach(s => $(s).addEventListener('input', conferir));
   $('#h-motivos').innerHTML = MOTIVOS.map(m => `<button type="button" class="chip">${esc(m)}</button>`).join('') +
     '<button type="button" class="chip chip-outro" data-outro="1">Outro</button>';
   $$('#h-motivos .chip').forEach(b => b.onclick = () => {
@@ -218,8 +224,17 @@ $('#h-data').addEventListener('change', conferir);
 $('#h-turno').addEventListener('change', () => { mostrarPrevisto(); conferir(); });
 
 function mostrarPrevisto() {
+  const ex = $('#h-turno').value === 'EX';
+  $('#h-ex').hidden = !ex;
+  $('#h-ex-ent').required = ex; $('#h-ex-sai').required = ex;
   const t = TURNOS[$('#h-turno').value];
-  $('#h-previsto').textContent = `Previsto: ${t.entrada} às ${t.saida}`;
+  $('#h-previsto').textContent = t ? `Previsto: ${t.entrada} às ${t.saida}` : '';
+}
+// Jornada do formulário: exceção > "jornada diferente" > turno
+function jornadaForm() {
+  const turno = $('#h-turno').value;
+  if (turno === 'EX') return jornadaDe(turno, $('#h-ex-ent').value, $('#h-ex-sai').value);
+  return jornadaDe(turno, $('#h-jent').value, $('#h-jsai').value);
 }
 
 // ---------- Percentual simples (chips) ----------
@@ -284,7 +299,8 @@ function conferir() {
   $('#h-total').innerHTML = total ? `Total: <b>${fmtMin(total, true)}</b>${noct ? ` <span>· ${fmtMin(noct, true)} no período noturno (22h–5h)</span>` : ''}` : '';
 
   // almoço corrido só aparece quando a HE cai dentro do turno
-  const dentro = minutosDentroDoTurno(ini, fim, $('#h-turno').value);
+  const jorC = jornadaForm();
+  const dentro = jorC ? minutosDentroDoTurno(ini, fim, $('#h-turno').value, jorC.ent, jorC.sai) : 0;
   $('#h-almoco-box').hidden = !(dentro > TOLERANCIA_TURNO || $('#h-almoco').checked);
 
   // separar noturna
@@ -300,11 +316,14 @@ function conferir() {
   // conferência da soma (só no modo manual)
   const valores = COLUNAS_HE.map(c => toMin($('#h-' + c.campo).value));
   const adic = toMin($('#h-min_35').value);
-  // sugestão: turno noturno inteiro (T3) como adicional
-  const t = TURNOS[$('#h-turno').value], durTurno = duracao(t.entrada, t.saida), noctTurno = minutosNoturnos(t.entrada, t.saida);
-  const bt = $('#h-adic-turno');
-  bt.hidden = !noctTurno;
-  if (noctTurno) { const v = $('#h-turno').value === 'T3' ? durTurno : noctTurno; bt.dataset.v = fmtMin(v, true); bt.textContent = `Usar ${fmtMin(v, true)} (${$('#h-turno').value})`; }
+  // adicional noturno: calculado pela jornada quando marcado (pode ajustar à mão)
+  const jor = jornadaForm(), sim = $('#h-adic-sim').checked;
+  const calcAdic = jor ? adicionalDaJornada($('#h-turno').value, jor.ent, jor.sai) : 0;
+  $('#h-adic-linha').hidden = !sim;
+  if (sim && !$('#h-min_35').dataset.manual) $('#h-min_35').value = fmtMin(calcAdic, true);
+  $('#h-adic-calc').textContent = !sim ? '' : jor
+    ? `Pela jornada ${jor.ent} às ${jor.sai}: ${fmtMin(calcAdic, true)}${$('#h-min_35').dataset.manual && toMin($('#h-min_35').value) !== calcAdic ? ' (você ajustou)' : ''}`
+    : 'Informe a entrada e a saída do horário avulso.';
   const box = $('#h-conferencia');
   const soma = valores.some(isNaN) ? NaN : valores.reduce((a, b) => a + b, 0);
   if (!modoManual) { box.className = 'conferencia'; box.textContent = ''; }
@@ -331,14 +350,14 @@ function mostrarAvisos() {
   if (data && periodoFechado(data)) {
     av.push(['erro', `🔒 O período ${rotuloPeriodo(periodoDaData(data))} está fechado. ${ehAdmin() ? 'Como admin, você ainda pode lançar.' : 'Não é possível lançar nesta data.'}`]);
   }
-  const dentro = minutosDentroDoTurno(ini, fim, $('#h-turno').value);
+  const jorA = jornadaForm();
+  const dentro = jorA ? minutosDentroDoTurno(ini, fim, $('#h-turno').value, jorA.ent, jorA.sai) : 0;
   const almoco = $('#h-almoco').checked;
   if (almoco) {
     av.push(['info', '🍽 Almoço corrido: a HE pode ficar dentro do horário do turno.']);
     if (total > 70) av.push(['alerta', `⚠ Almoço corrido normalmente é 1h, e aqui deu ${fmtMin(total, true)}. Confira os horários.`]);
   } else if (dentro > TOLERANCIA_TURNO) {
-    const t = TURNOS[$('#h-turno').value];
-    av.push(['alerta', `⚠ ${fmtMin(dentro, true)} dessa HE cai dentro do horário do ${$('#h-turno').value} (${t.entrada} às ${t.saida}). Confira o turno e os horários. Se foi almoço corrido, marque "Almoço corrido" logo abaixo do horário.`]);
+    av.push(['alerta', `⚠ ${fmtMin(dentro, true)} dessa HE cai dentro da jornada ${rotuloTurno($('#h-turno').value)} (${jorA.ent} às ${jorA.sai}). Confira o turno e os horários. Se foi almoço corrido, marque "Almoço corrido" logo abaixo do horário.`]);
   }
   if (total > 120) av.push(['alerta', `⚠ Acima de 2h de hora extra no dia (${fmtMin(total, true)}). O limite legal é 2h, salvo exceções. Explique bem na justificativa.`]);
   $('#h-avisos').innerHTML = av.map(([t, txt]) => `<div class="aviso-l ${t}">${txt}</div>`).join('');
@@ -353,6 +372,7 @@ function limparForm() {
   $('#t-lancar').textContent = 'Lançar hora extra';
   $('#h-cancelar').hidden = true;
   pctEscolhido = null; modoManual = false; marcarChips();
+  $('#h-adic-sim').checked = false; $('#h-min_35').value = ''; $('#h-min_35').dataset.manual = '';
   $$('#h-motivos .chip').forEach(x => x.classList.remove('ativo'));
   mostrarPrevisto(); conferir(); msg($('#f-he'), '');
 }
@@ -366,8 +386,8 @@ $('#f-he').onsubmit = async e => {
     turno: $('#h-turno').value,
     inicio: $('#h-inicio').value,
     fim: $('#h-fim').value,
-    jornada_entrada: $('#h-jent').value || null,
-    jornada_saida: $('#h-jsai').value || null,
+    jornada_entrada: ($('#h-turno').value === 'EX' ? $('#h-ex-ent').value : $('#h-jent').value) || null,
+    jornada_saida: ($('#h-turno').value === 'EX' ? $('#h-ex-sai').value : $('#h-jsai').value) || null,
     refeicao_inicio: $('#h-rini').value || null,
     refeicao_fim: $('#h-rfim').value || null,
     justificativa: $('#h-just').value.trim(),
@@ -378,6 +398,8 @@ $('#f-he').onsubmit = async e => {
     if (isNaN(v)) return msg(f, `Valor inválido em ${c.rotulo}. Use hh:mm.`);
     reg[c.campo] = v;
   }
+  if (reg.turno === 'EX' && !(reg.jornada_entrada && reg.jornada_saida)) return msg(f, 'Horário exceção: informe a entrada e a saída do horário avulso (passo 1).');
+  if (!$('#h-adic-sim').checked) reg.min_35 = 0;
   if (!duracao(reg.inicio, reg.fim)) return msg(f, 'Informe o horário em que a HE começou e terminou (passo 2).');
   if (!modoManual && !pctEscolhido) return msg(f, 'Escolha o percentual da hora extra (passo 3).');
   if (!somaColunas(reg) && !reg.min_35) return msg(f, 'Preencha as horas da HE ou do adicional noturno.');
@@ -506,12 +528,13 @@ function detalheColunas(r) {
 function itemHTML(r, meu, opc = {}) {
   const total = duracao(r.inicio, r.fim), soma = somaColunas(r);
   const diverge = total !== soma, acima2h = Math.max(total, soma) > 120;
-  const noTurno = !r.almoco_corrido && minutosDentroDoTurno(r.inicio, r.fim, r.turno) > TOLERANCIA_TURNO;
+  const noTurno = !r.almoco_corrido && minutosDentroDoTurno(r.inicio, r.fim, r.turno, r.jornada_entrada, r.jornada_saida) > TOLERANCIA_TURNO;
   const travado = periodoFechado(r.data) && !ehAdmin();
   const nome = meu ? '' : `<b>${esc(r.colaborador?.nome)}</b> (${esc((r.colaborador?.cs || '').toUpperCase())}) · `;
   const deOutraEquipe = !meu && ehSup() && r.colaborador?.supervisor_id && r.colaborador.supervisor_id !== eu.id;
   // HE de supervisor: só o supervisor direto (ou admin) aprova
-  const soDireto = !meu && !ehAdmin() && ['supervisor', 'admin'].includes(r.colaborador?.papel) && r.colaborador?.supervisor_id !== eu.id;
+  const propria = !meu && r.colaborador_id === eu.id;   // Supervisor 3 vendo a própria HE na aprovação
+  const soDireto = !meu && !propria && !ehAdmin() && ['supervisor', 'admin'].includes(r.colaborador?.papel) && r.colaborador?.supervisor_id !== eu.id;
   const rotStatus = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado' }[r.status];
   let extra = '';
   if (r.status === 'aprovado' && r.aprovador) extra = `<div class="det">Aprovado por ${esc(r.aprovador.nome)} em ${new Date(r.aprovado_em).toLocaleDateString('pt-BR')}</div>`;
@@ -537,11 +560,12 @@ function itemHTML(r, meu, opc = {}) {
   botoes += `<div class="historico" id="hist-${r.id}" hidden></div>`;
 
   return `<div class="item">
-    <div class="lin1">${nome}${br(r.data)} ${diaSemana(r.data)} · ${r.turno} · ${hhmm(r.inicio)} às ${hhmm(r.fim)}</div>
+    <div class="lin1">${nome}${br(r.data)} ${diaSemana(r.data)} · ${rotuloTurno(r.turno)}${r.turno === 'EX' && r.jornada_entrada ? ` (${hhmm(r.jornada_entrada)}–${hhmm(r.jornada_saida)})` : ''} · ${hhmm(r.inicio)} às ${hhmm(r.fim)}</div>
     <span class="st ${r.status}">${rotStatus}</span>
     <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${noTurno ? ` · <span class="alerta">⚠ dentro do horário do ${r.turno}</span>` : ''}${r.almoco_corrido ? ` · <span class="info-t">🍽 Almoço corrido</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
     <div class="det">${esc(r.justificativa)}</div>
-    ${deOutraEquipe && !soDireto ? `<div class="det"><span class="tag-cobertura">Equipe de outro supervisor · aprovação por cobertura</span></div>` : ''}
+    ${propria ? `<div class="det"><span class="tag-cobertura">Sua HE · como Supervisor 3 você aprova a própria (fica na Auditoria)</span></div>` : ''}
+    ${deOutraEquipe && !soDireto && !propria ? `<div class="det"><span class="tag-cobertura">Equipe de outro supervisor · aprovação por cobertura</span></div>` : ''}
     ${extra}${botoes}
   </div>`;
 }
@@ -555,13 +579,18 @@ window.editar = id => {
   $('#h-cancelar').hidden = false;
   $('#h-data').value = r.data;
   $('#h-turno').value = r.turno;
+  $('#h-ex-ent').value = r.turno === 'EX' ? hhmm(r.jornada_entrada) : '';
+  $('#h-ex-sai').value = r.turno === 'EX' ? hhmm(r.jornada_saida) : '';
+  $('#h-adic-sim').checked = !!r.min_35;
+  $('#h-min_35').dataset.manual = r.min_35 ? '1' : '';
   $('#h-inicio').value = hhmm(r.inicio);
   $('#h-fim').value = hhmm(r.fim);
   $('#h-jent').value = hhmm(r.jornada_entrada);
   $('#h-jsai').value = hhmm(r.jornada_saida);
   $('#h-rini').value = hhmm(r.refeicao_inicio);
   $('#h-rfim').value = hhmm(r.refeicao_fim);
-  $('#h-jornada').open = !!(r.jornada_entrada || r.jornada_saida || r.refeicao_inicio);
+  $('#h-jornada').open = r.turno !== 'EX' && !!(r.jornada_entrada || r.jornada_saida || r.refeicao_inicio);
+  if (r.turno === 'EX') { $('#h-jent').value = ''; $('#h-jsai').value = ''; }
   $('#h-just').value = r.justificativa;
   $('#h-almoco').checked = !!r.almoco_corrido;
   COLUNAS.forEach(c => $('#h-' + c.campo).value = fmtMin(r[c.campo]));
@@ -593,7 +622,7 @@ $('#a-filtro').onchange = carregarPendentes;
 
 async function contarPendentes() {
   const { count } = await sb.from('horas_extras').select('id', { count: 'exact', head: true })
-    .eq('status', 'pendente').neq('colaborador_id', eu.id);
+    .eq('status', 'pendente').neq('colaborador_id', autoAprova() ? '00000000-0000-0000-0000-000000000000' : eu.id);
   const b = $('#badge-pend');
   b.textContent = count || ''; b.hidden = !count;
 }
@@ -602,7 +631,7 @@ async function carregarPendentes() {
   $('#a-lista').innerHTML = '<p class="vazio">Carregando...</p>';
   const { data, error } = await sb.from('horas_extras')
     .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo, supervisor_id, papel)')
-    .eq('status', 'pendente').neq('colaborador_id', eu.id).order('data');
+    .eq('status', 'pendente').neq('colaborador_id', autoAprova() ? '00000000-0000-0000-0000-000000000000' : eu.id).order('data');
   if (error) { $('#a-lista').innerHTML = `<p class="msg erro">${esc(error.message)}</p>`; return; }
   const so = $('#a-filtro').value === 'minha';
   const lista = so ? data.filter(r => r.colaborador?.supervisor_id === eu.id) : data;
@@ -903,7 +932,7 @@ function graficoDias(p, hes) {
 async function pendenciasRapidas() {
   let q = sb.from('horas_extras')
     .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo, supervisor_id, papel)')
-    .eq('status', 'pendente').neq('colaborador_id', eu.id).order('atualizado_em').limit(5);
+    .eq('status', 'pendente').neq('colaborador_id', autoAprova() ? '00000000-0000-0000-0000-000000000000' : eu.id).order('atualizado_em').limit(5);
   const { data } = await q;
   return data || [];
 }
@@ -918,7 +947,7 @@ async function buscarHEsPeriodo(p) {
   let q = sb.from('horas_extras')
     .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo)')
     .gte('data', p.ini).lte('data', p.fim).neq('status', 'recusado');
-  if (!ehAdmin()) q = q.neq('colaborador_id', eu.id);   // supervisor vê só a equipe
+  if (!ehAdmin() && !autoAprova()) q = q.neq('colaborador_id', eu.id);
   return q;
 }
 
@@ -982,6 +1011,8 @@ async function carregarPainel() {
 
   // por turno
   const turnos = Object.keys(TURNOS).map(t => ({ rotulo: `${t} (${TURNOS[t].entrada})`, valor: soma(hes.filter(r => r.turno === t)) }));
+  const ex = soma(hes.filter(r => r.turno === 'EX'));
+  if (ex) turnos.push({ rotulo: 'Exceção', valor: ex });
 
   const vazio = total === 0;   // sem horas de HE (adicional noturno sozinho não conta)
   const adicTxt = arr => { const a = arr.reduce((x, r) => x + adicionalNoturno(r), 0); return a ? ` · adic. noturno ${fmtMin(a, true)}` : ''; };

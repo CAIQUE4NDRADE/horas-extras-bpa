@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · Base de Paulínia</title>
-<link rel="stylesheet" href="style.css?v=25">
+<link rel="stylesheet" href="style.css?v=27">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4d6d5d">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=25"></script>
-<script src="comum.js?v=25"></script>
+<script src="config.js?v=27"></script>
+<script src="comum.js?v=27"></script>
 </head>
 <body>
 
@@ -136,9 +136,14 @@
                 <option value="T2">T2 · 15:30 às 00:00</option>
                 <option value="T3">T3 · 23:50 às 07:38</option>
                 <option value="T4">T4 · 11:30 às 20:00</option>
+                <option value="EX">Horário exceção (avulso)</option>
               </select>
             </label>
             <div class="previsto" id="h-previsto" hidden></div>
+          </div>
+          <div class="grade g2" id="h-ex" hidden>
+            <label>Entrada (horário avulso)<input id="h-ex-ent" type="time"></label>
+            <label>Saída (horário avulso)<input id="h-ex-sai" type="time"></label>
           </div>
         </div>
 
@@ -171,12 +176,12 @@
           <div id="h-conferencia" class="conferencia"></div>
 
           <div class="adicional-box">
-            <label for="h-min_35"><b>Adicional noturno 35%</b> <small>(opcional · não conta como hora extra)</small></label>
-            <div class="linha-adic">
-              <input id="h-min_35" class="col-adic" inputmode="numeric" placeholder="00:00" maxlength="6">
-              <button type="button" class="chip" id="h-adic-turno" hidden></button>
+            <label class="chk-linha"><input id="h-adic-sim" type="checkbox"> <span><b>Adicional noturno 35%</b> · teve horas entre 22:00 e 05:00 na jornada</span></label>
+            <div class="linha-adic" id="h-adic-linha" hidden>
+              <input id="h-min_35" class="col-adic" inputmode="numeric" placeholder="00:00" maxlength="6" aria-label="Horas de adicional noturno">
+              <span id="h-adic-calc" class="dica"></span>
             </div>
-            <p class="dica">Horas noturnas da jornada, preenchidas separado da HE. Ex.: T3 entrou 23:50 e saiu 09:50 → HE 07:38 às 09:50 e adicional noturno 07:48.</p>
+            <p class="dica">Adicional noturno a partir das 22:00 até as 05:00. Para o T3, contabiliza do horário de entrada (23:50) até o horário da saída (07:38). Não entra no total de hora extra.</p>
           </div>
         </div>
 
@@ -333,6 +338,6 @@
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
 </button>
 
-<script src="app.js?v=25"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>

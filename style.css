@@ -510,6 +510,9 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
 .adicional-box label { margin: 0 0 6px; color: var(--texto); font-size: 14px; }
 .adicional-box small { color: var(--suave); font-weight: 400; }
 .adicional-box .dica { margin: 8px 0 0; font-size: 12.5px; }
+.adic-tit { font-weight: 700; font-size: 15px; margin: 0 0 8px; color: var(--texto); }
+.chips.grandes.dois { grid-template-columns: 1fr 2fr; margin-bottom: 8px; }
+.chips.grandes.dois .chip { font-size: 17px; padding: 8px 6px; line-height: 1.15; }
 .linha-adic { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .linha-adic input { width: 120px; margin: 0; }
 @media (max-width: 700px) {

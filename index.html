@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horas Extras · Base de Paulínia</title>
-<link rel="stylesheet" href="style.css?v=27">
+<link rel="stylesheet" href="style.css?v=28">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4d6d5d">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Horas Extras">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=27"></script>
-<script src="comum.js?v=27"></script>
+<script src="config.js?v=28"></script>
+<script src="comum.js?v=28"></script>
 </head>
 <body>
 
@@ -145,6 +145,10 @@
             <label>Entrada (horário avulso)<input id="h-ex-ent" type="time"></label>
             <label>Saída (horário avulso)<input id="h-ex-sai" type="time"></label>
           </div>
+          <div class="grade g2">
+            <label>Refeição início<input id="h-rini" type="time"></label>
+            <label>Refeição fim<input id="h-rfim" type="time"></label>
+          </div>
         </div>
 
         <div class="passo">
@@ -176,7 +180,12 @@
           <div id="h-conferencia" class="conferencia"></div>
 
           <div class="adicional-box">
-            <label class="chk-linha"><input id="h-adic-sim" type="checkbox"> <span><b>Adicional noturno 35%</b> · teve horas entre 22:00 e 05:00 na jornada</span></label>
+            <div class="adic-tit">Teve adicional noturno 35%?</div>
+            <input id="h-adic-sim" type="checkbox" hidden>
+            <div class="chips grandes dois" id="h-adic-chips">
+              <button type="button" class="chip ativo" data-adic="0">Não</button>
+              <button type="button" class="chip" data-adic="1">35% adicional noturno</button>
+            </div>
             <div class="linha-adic" id="h-adic-linha" hidden>
               <input id="h-min_35" class="col-adic" inputmode="numeric" placeholder="00:00" maxlength="6" aria-label="Horas de adicional noturno">
               <span id="h-adic-calc" class="dica"></span>
@@ -193,11 +202,9 @@
 
         <details id="h-jornada">
           <summary>Minha jornada foi diferente da prevista <small>(opcional)</small></summary>
-          <div class="grade g4">
+          <div class="grade g2">
             <label>Entrada<input id="h-jent" type="time"></label>
             <label>Saída<input id="h-jsai" type="time"></label>
-            <label>Refeição início<input id="h-rini" type="time"></label>
-            <label>Refeição fim<input id="h-rfim" type="time"></label>
           </div>
         </details>
 
@@ -338,6 +345,6 @@
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
 </button>
 
-<script src="app.js?v=27"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>

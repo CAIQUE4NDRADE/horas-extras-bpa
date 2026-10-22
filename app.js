@@ -204,6 +204,10 @@ function montarColunas() {
     if (!$('#h-adic-sim').checked) $('#h-min_35').value = '';
     conferir();
   });
+  $$('#h-adic-chips .chip').forEach(c => c.onclick = () => {
+    $('#h-adic-sim').checked = c.dataset.adic === '1';
+    $('#h-adic-sim').dispatchEvent(new Event('change'));
+  });
   ['#h-ex-ent', '#h-ex-sai', '#h-jent', '#h-jsai'].forEach(s => $(s).addEventListener('input', conferir));
   $('#h-motivos').innerHTML = MOTIVOS.map(m => `<button type="button" class="chip">${esc(m)}</button>`).join('') +
     '<button type="button" class="chip chip-outro" data-outro="1">Outro</button>';
@@ -320,6 +324,7 @@ function conferir() {
   const jor = jornadaForm(), sim = $('#h-adic-sim').checked;
   const calcAdic = jor ? adicionalDaJornada($('#h-turno').value, jor.ent, jor.sai) : 0;
   $('#h-adic-linha').hidden = !sim;
+  $$('#h-adic-chips .chip').forEach(c => c.classList.toggle('ativo', (c.dataset.adic === '1') === sim));
   if (sim && !$('#h-min_35').dataset.manual) $('#h-min_35').value = fmtMin(calcAdic, true);
   $('#h-adic-calc').textContent = !sim ? '' : jor
     ? `Pela jornada ${jor.ent} às ${jor.sai}: ${fmtMin(calcAdic, true)}${$('#h-min_35').dataset.manual && toMin($('#h-min_35').value) !== calcAdic ? ' (você ajustou)' : ''}`
@@ -589,7 +594,7 @@ window.editar = id => {
   $('#h-jsai').value = hhmm(r.jornada_saida);
   $('#h-rini').value = hhmm(r.refeicao_inicio);
   $('#h-rfim').value = hhmm(r.refeicao_fim);
-  $('#h-jornada').open = r.turno !== 'EX' && !!(r.jornada_entrada || r.jornada_saida || r.refeicao_inicio);
+  $('#h-jornada').open = r.turno !== 'EX' && !!(r.jornada_entrada || r.jornada_saida);
   if (r.turno === 'EX') { $('#h-jent').value = ''; $('#h-jsai').value = ''; }
   $('#h-just').value = r.justificativa;
   $('#h-almoco').checked = !!r.almoco_corrido;

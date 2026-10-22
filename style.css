@@ -527,3 +527,5 @@ body.contraste .dica, body.contraste small { color: #1f1f1f; }
 #a-filtro { margin: 0; width: auto; }
 .tab-equipe tr[hidden] { display: none !important; }
 #e-filtros { margin-top: 4px; }
+.pessoa-linha span.atrasada { color: var(--pend); font-weight: 600; }
+#pn-adic .barra-linha:last-of-type { margin-bottom: 10px; }

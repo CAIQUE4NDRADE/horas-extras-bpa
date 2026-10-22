@@ -1069,6 +1069,15 @@ async function carregarPainel() {
     .map(g => ({ rotulo: g.charAt(0) + g.slice(1).toLowerCase(), valor: soma(hes.filter(r => grupoCargo(r.colaborador?.cargo) === g)) }))
     .filter(x => x.valor || x.rotulo !== 'Outros');
   const totalAdic = hes.reduce((a, r) => a + adicionalNoturno(r), 0);
+  // adicional noturno por colaborador
+  const adicPorColab = {};
+  hes.filter(r => adicionalNoturno(r) > 0).forEach(r => {
+    const k = r.colaborador_id;
+    adicPorColab[k] = adicPorColab[k] || { nome: r.colaborador?.nome || '—', cs: r.colaborador?.cs || '', dias: 0, aprov: 0, pend: 0 };
+    adicPorColab[k].dias++;
+    adicPorColab[k][r.status === 'aprovado' ? 'aprov' : 'pend'] += adicionalNoturno(r);
+  });
+  const adicLista = Object.values(adicPorColab).sort((a, b) => (b.aprov + b.pend) - (a.aprov + a.pend));
   const porPct = COLUNAS_HE.map(c => ({ rotulo: c.rotulo, valor: hes.reduce((a, r) => a + (r[c.campo] || 0), 0) }));
   box.innerHTML = `
     <div class="kpis">
@@ -1085,7 +1094,19 @@ async function carregarPainel() {
       <button class="kpi clicavel ${atrasadas.length ? 'alerta' : ''}" ${atrasadas.length ? '' : 'disabled'} onclick="abrirPainel('p-aprovar')">
         <span>Pendentes há mais de 3 dias</span><b>${atrasadas.length}</b><small>${atrasadas.length ? 'toque para ir aprovar' : 'nada esquecido 👍'}</small>
       </button>
-      <div class="kpi adic"><span>Adicional noturno 35%</span><b>${fmtMin(totalAdic, true)}</b><small>separado · não entra no total de HE</small></div>
+      <button class="kpi clicavel adic" id="pn-btn-adic" ${adicLista.length ? '' : 'disabled'}>
+        <span>Adicional noturno 35%</span><b>${fmtMin(totalAdic, true)}</b><small>${adicLista.length ? `${adicLista.length} colaborador(es) · toque para ver por pessoa` : 'separado · não entra no total de HE'}</small>
+      </button>
+    </div>
+
+    <div id="pn-adic" class="card lista-pessoas" hidden>
+      <h3>Adicional noturno por colaborador <small>(separado da HE)</small></h3>
+      ${barras(adicLista.map(x => ({ rotulo: nomeCurto(x.nome), valor: x.aprov + x.pend })), 'var(--azul-escuro)')}
+      ${adicLista.map(x => `<div class="pessoa-linha">
+        <span><b>${esc(x.nome)}</b> <small>${esc(x.cs.toUpperCase())}</small></span>
+        <span>${fmtMin(x.aprov + x.pend, true)} em ${x.dias} dia(s)</span>
+        <small>${x.aprov ? `aprovado ${fmtMin(x.aprov, true)}` : ''}${x.aprov && x.pend ? ' · ' : ''}${x.pend ? `<span class="atrasada">pendente ${fmtMin(x.pend, true)}</span>` : ''}</small>
+      </div>`).join('')}
     </div>
 
     <div id="pn-pessoas" class="card lista-pessoas" hidden>
@@ -1134,6 +1155,8 @@ async function carregarPainel() {
 
   const bp = $('#pn-btn-pessoas');
   if (bp) bp.onclick = () => { const l = $('#pn-pessoas'); l.hidden = !l.hidden; };
+  const ba = $('#pn-btn-adic');
+  if (ba) ba.onclick = () => { const l = $('#pn-adic'); l.hidden = !l.hidden; if (!l.hidden) l.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
 }
 
 // ===================== ADMIN: ver/excluir lançamentos =====================

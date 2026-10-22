@@ -510,6 +510,8 @@ function itemHTML(r, meu, opc = {}) {
   const travado = periodoFechado(r.data) && !ehAdmin();
   const nome = meu ? '' : `<b>${esc(r.colaborador?.nome)}</b> (${esc((r.colaborador?.cs || '').toUpperCase())}) · `;
   const deOutraEquipe = !meu && ehSup() && r.colaborador?.supervisor_id && r.colaborador.supervisor_id !== eu.id;
+  // HE de supervisor: só o supervisor direto (ou admin) aprova
+  const soDireto = !meu && !ehAdmin() && ['supervisor', 'admin'].includes(r.colaborador?.papel) && r.colaborador?.supervisor_id !== eu.id;
   const rotStatus = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado' }[r.status];
   let extra = '';
   if (r.status === 'aprovado' && r.aprovador) extra = `<div class="det">Aprovado por ${esc(r.aprovador.nome)} em ${new Date(r.aprovado_em).toLocaleDateString('pt-BR')}</div>`;
@@ -524,6 +526,7 @@ function itemHTML(r, meu, opc = {}) {
       <button class="btn ${r.status === 'recusado' ? 'ok' : 'sec'} peq" onclick="editar(${r.id})">${r.status === 'recusado' ? 'Corrigir' : 'Editar'}</button>
       <button class="btn perigo peq" onclick="excluir(${r.id}, this)">Excluir</button>${btnHist}</div>`;
   if (!meu && (opc.adminLista && r.status !== 'pendente')) botoes = `<div class="botoes">${btnHist}${btnExcAdm}</div>`;
+  else if (soDireto) botoes = `<div class="botoes"><span class="trava">Aprovação pelo supervisor direto dele</span>${btnHist}</div>`;
   else if (!meu) botoes = `<div class="botoes">
       ${opc.semLote ? '' : `<label class="sel-lote"><input type="checkbox" class="chk-lote" value="${r.id}" data-limpo="${diverge || acima2h || noTurno ? 0 : 1}"> Selecionar</label>`}
       <button class="btn ok peq" onclick="decidir(${r.id}, true, this)">Aprovar</button>
@@ -538,7 +541,7 @@ function itemHTML(r, meu, opc = {}) {
     <span class="st ${r.status}">${rotStatus}</span>
     <div class="det">${detalheColunas(r)}${diverge ? ` · <span class="alerta">⚠ horário dá ${fmtMin(total, true)}, colunas somam ${fmtMin(soma, true)}</span>` : ''}${acima2h ? ` · <span class="alerta">⚠ acima de 2h no dia</span>` : ''}${noTurno ? ` · <span class="alerta">⚠ dentro do horário do ${r.turno}</span>` : ''}${r.almoco_corrido ? ` · <span class="info-t">🍽 Almoço corrido</span>` : ''}${feriados[r.data] ? ` · <span class="info-t">📅 ${esc(feriados[r.data])}</span>` : ''}</div>
     <div class="det">${esc(r.justificativa)}</div>
-    ${deOutraEquipe ? `<div class="det"><span class="tag-cobertura">Equipe de outro supervisor · aprovação por cobertura</span></div>` : ''}
+    ${deOutraEquipe && !soDireto ? `<div class="det"><span class="tag-cobertura">Equipe de outro supervisor · aprovação por cobertura</span></div>` : ''}
     ${extra}${botoes}
   </div>`;
 }
@@ -598,7 +601,7 @@ async function contarPendentes() {
 async function carregarPendentes() {
   $('#a-lista').innerHTML = '<p class="vazio">Carregando...</p>';
   const { data, error } = await sb.from('horas_extras')
-    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo, supervisor_id)')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo, supervisor_id, papel)')
     .eq('status', 'pendente').neq('colaborador_id', eu.id).order('data');
   if (error) { $('#a-lista').innerHTML = `<p class="msg erro">${esc(error.message)}</p>`; return; }
   const so = $('#a-filtro').value === 'minha';
@@ -899,7 +902,7 @@ function graficoDias(p, hes) {
 
 async function pendenciasRapidas() {
   let q = sb.from('horas_extras')
-    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo, supervisor_id)')
+    .select('*, colaborador:colaboradores!horas_extras_colaborador_id_fkey(nome, cs, cargo, supervisor_id, papel)')
     .eq('status', 'pendente').neq('colaborador_id', eu.id).order('atualizado_em').limit(5);
   const { data } = await q;
   return data || [];

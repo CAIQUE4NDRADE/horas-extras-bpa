@@ -22,7 +22,13 @@ const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
-function normCS(v) { return String(v || '').trim().toLowerCase().replace(/\s+/g, ''); }
+// CS sempre no formato "cs" + números (ex.: cs338104). Se digitar só os números, completa o "cs".
+function normCS(v) {
+  let c = String(v || '').trim().toLowerCase().replace(/[\s.\-_]+/g, '');
+  if (/^\d+$/.test(c)) c = 'cs' + c;
+  return c;
+}
+const CS_VALIDO = /^cs\d{4,10}$/;
 function emailDoCS(cs) { return `${normCS(cs)}@${CFG.DOMINIO_LOGIN}`; }
 
 // "hh:mm" -> minutos (vazio = 0, inválido = NaN)

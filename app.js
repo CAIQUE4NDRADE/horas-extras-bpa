@@ -81,7 +81,7 @@ $('#f-cadastro').onsubmit = async e => {
   e.preventDefault();
   const f = e.target; msg(f, '');
   const cs = normCS($('#c-cs').value);
-  if (!/^[a-z0-9._-]{3,}$/.test(cs)) return msg(f, 'CS inválido.');
+  if (!CS_VALIDO.test(cs)) return msg(f, 'O CS precisa começar com "CS" seguido só de números. Exemplo: CS338104.');
   if ($('#c-senha').value !== $('#c-senha2').value) return msg(f, 'As senhas não conferem.');
   ocupado(f, true);
   const { data, error } = await sb.auth.signUp({
